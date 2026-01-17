@@ -1,0 +1,533 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+
+		1000001 /* App/TianjiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000001 /* App/TianjiApp.swift */; };
+		1000002 /* App/ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000002 /* App/ContentView.swift */; };
+		1000003 /* Resources/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2000003 /* Resources/Assets.xcassets */; };
+		1000004 /* Resources/HexagramData.json in Resources */ = {isa = PBXBuildFile; fileRef = 2000004 /* Resources/HexagramData.json */; };
+		1000005 /* Data/Models/CoinProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000005 /* Data/Models/CoinProfile.swift */; };
+		1000006 /* Data/Models/DivinationSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000006 /* Data/Models/DivinationSession.swift */; };
+		1000007 /* Data/Models/CoinResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000007 /* Data/Models/CoinResult.swift */; };
+		1000008 /* Data/Models/Hexagram.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000008 /* Data/Models/Hexagram.swift */; };
+		1000009 /* Data/Storage/DataStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000009 /* Data/Storage/DataStorageManager.swift */; };
+		1000010 /* Views/SetupProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000010 /* Views/SetupProfileView.swift */; };
+		1000011 /* Views/CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000011 /* Views/CameraView.swift */; };
+		1000012 /* Views/HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000012 /* Views/HistoryView.swift */; };
+		1000013 /* Views/ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000013 /* Views/ResultView.swift */; };
+		1000014 /* Camera/CameraManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000014 /* Camera/CameraManager.swift */; };
+		1000015 /* Camera/CameraPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000015 /* Camera/CameraPreview.swift */; };
+		1000016 /* Camera/CameraOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000016 /* Camera/CameraOverlay.swift */; };
+		1000017 /* Recognition/TemplateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000017 /* Recognition/TemplateManager.swift */; };
+		1000018 /* Recognition/ROICropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000018 /* Recognition/ROICropper.swift */; };
+		1000019 /* Recognition/FeatureMatchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000019 /* Recognition/FeatureMatchService.swift */; };
+		1000020 /* Recognition/CoinValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000020 /* Recognition/CoinValidator.swift */; };
+		1000021 /* Utils/ImageProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000021 /* Utils/ImageProcessor.swift */; };
+		1000022 /* Utils/ConfidenceCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000022 /* Utils/ConfidenceCalculator.swift */; };
+		1000023 /* TianjiAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000023 /* TianjiAppUITests.swift */; };
+		1000024 /* Views/ManualInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000024 /* Views/ManualInputView.swift */; };
+		1000025 /* Views/HexagramTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000025 /* Views/HexagramTestView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1200001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5000001;
+			remoteInfo = TianjiApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		2000001 /* App/TianjiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/TianjiApp.swift; sourceTree = "<group>"; };
+		2000002 /* App/ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/ContentView.swift; sourceTree = "<group>"; };
+		2000003 /* Resources/Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Resources/Assets.xcassets; sourceTree = "<group>"; };
+		2000004 /* Resources/HexagramData.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Resources/HexagramData.json; sourceTree = "<group>"; };
+		2000005 /* Data/Models/CoinProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/Models/CoinProfile.swift; sourceTree = "<group>"; };
+		2000006 /* Data/Models/DivinationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/Models/DivinationSession.swift; sourceTree = "<group>"; };
+		2000007 /* Data/Models/CoinResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/Models/CoinResult.swift; sourceTree = "<group>"; };
+		2000008 /* Data/Models/Hexagram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/Models/Hexagram.swift; sourceTree = "<group>"; };
+		2000009 /* Data/Storage/DataStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/Storage/DataStorageManager.swift; sourceTree = "<group>"; };
+		2000010 /* Views/SetupProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SetupProfileView.swift; sourceTree = "<group>"; };
+		2000011 /* Views/CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/CameraView.swift; sourceTree = "<group>"; };
+		2000012 /* Views/HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HistoryView.swift; sourceTree = "<group>"; };
+		2000013 /* Views/ResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ResultView.swift; sourceTree = "<group>"; };
+		2000014 /* Camera/CameraManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Camera/CameraManager.swift; sourceTree = "<group>"; };
+		2000015 /* Camera/CameraPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Camera/CameraPreview.swift; sourceTree = "<group>"; };
+		2000016 /* Camera/CameraOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Camera/CameraOverlay.swift; sourceTree = "<group>"; };
+		2000017 /* Recognition/TemplateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recognition/TemplateManager.swift; sourceTree = "<group>"; };
+		2000018 /* Recognition/ROICropper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recognition/ROICropper.swift; sourceTree = "<group>"; };
+		2000019 /* Recognition/FeatureMatchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recognition/FeatureMatchService.swift; sourceTree = "<group>"; };
+		2000020 /* Recognition/CoinValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recognition/CoinValidator.swift; sourceTree = "<group>"; };
+		2000021 /* Utils/ImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ImageProcessor.swift; sourceTree = "<group>"; };
+		2000022 /* Utils/ConfidenceCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/ConfidenceCalculator.swift; sourceTree = "<group>"; };
+		2000023 /* TianjiAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TianjiAppUITests.swift; sourceTree = "<group>"; };
+		2000024 /* Views/ManualInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ManualInputView.swift; sourceTree = "<group>"; };
+		2000025 /* Views/HexagramTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HexagramTestView.swift; sourceTree = "<group>"; };
+		3000001 /* TianjiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TianjiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3000002 /* TianjiAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TianjiAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		737142052D26416AA504BBE8 /* HexagramImages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HexagramImages; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0000001 = {
+			isa = PBXGroup;
+			children = (
+				0000002,
+				0000004 /* TianjiAppUITests */,
+				0000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		0000002 = {
+			isa = PBXGroup;
+			children = (
+				2000001 /* App/TianjiApp.swift */,
+				2000002 /* App/ContentView.swift */,
+				2000005 /* Data/Models/CoinProfile.swift */,
+				2000006 /* Data/Models/DivinationSession.swift */,
+				2000007 /* Data/Models/CoinResult.swift */,
+				2000008 /* Data/Models/Hexagram.swift */,
+				2000009 /* Data/Storage/DataStorageManager.swift */,
+				2000010 /* Views/SetupProfileView.swift */,
+				2000011 /* Views/CameraView.swift */,
+				2000012 /* Views/HistoryView.swift */,
+				2000013 /* Views/ResultView.swift */,
+				2000024 /* Views/ManualInputView.swift */,
+				2000025 /* Views/HexagramTestView.swift */,
+				2000014 /* Camera/CameraManager.swift */,
+				2000015 /* Camera/CameraPreview.swift */,
+				2000016 /* Camera/CameraOverlay.swift */,
+				2000017 /* Recognition/TemplateManager.swift */,
+				2000018 /* Recognition/ROICropper.swift */,
+				2000019 /* Recognition/FeatureMatchService.swift */,
+				2000020 /* Recognition/CoinValidator.swift */,
+				2000021 /* Utils/ImageProcessor.swift */,
+				2000022 /* Utils/ConfidenceCalculator.swift */,
+				2000003 /* Resources/Assets.xcassets */,
+				2000004 /* Resources/HexagramData.json */,
+			);
+			sourceTree = "<group>";
+		};
+		0000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3000001 /* TianjiApp.app */,
+				3000002 /* TianjiAppUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		0000004 /* TianjiAppUITests */ = {
+			isa = PBXGroup;
+			children = (
+				2000023 /* TianjiAppUITests.swift */,
+			);
+			path = TianjiAppUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5000001 /* TianjiApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6000001 /* Build configuration list for PBXNativeTarget "TianjiApp" */;
+			buildPhases = (
+				7000001 /* Sources */,
+				4000001 /* Frameworks */,
+				8000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TianjiApp;
+			productName = TianjiApp;
+			productReference = 3000001 /* TianjiApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5000002 /* TianjiAppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6000003 /* Build configuration list for PBXNativeTarget "TianjiAppUITests" */;
+			buildPhases = (
+				7000002 /* Sources */,
+				4000002 /* Frameworks */,
+				8000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1100001 /* PBXTargetDependency */,
+			);
+			name = TianjiAppUITests;
+			productName = TianjiAppUITests;
+			productReference = 3000002 /* TianjiAppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					5000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					5000002 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 5000001;
+					};
+				};
+			};
+			buildConfigurationList = 6000002 /* Build configuration list for PBXProject "TianjiApp" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 0000001;
+			productRefGroup = 0000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5000001 /* TianjiApp */,
+				5000002 /* TianjiAppUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1000003 /* Resources/Assets.xcassets in Resources */,
+				1000004 /* Resources/HexagramData.json in Resources */,
+			,
+					6199290CA9484812991AA301 /* HexagramImages in Resources */);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			,
+					6199290CA9484812991AA301 /* HexagramImages in Resources */);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1000001 /* App/TianjiApp.swift in Sources */,
+				1000002 /* App/ContentView.swift in Sources */,
+				1000005 /* Data/Models/CoinProfile.swift in Sources */,
+				1000006 /* Data/Models/DivinationSession.swift in Sources */,
+				1000007 /* Data/Models/CoinResult.swift in Sources */,
+				1000008 /* Data/Models/Hexagram.swift in Sources */,
+				1000009 /* Data/Storage/DataStorageManager.swift in Sources */,
+				1000010 /* Views/SetupProfileView.swift in Sources */,
+				1000011 /* Views/CameraView.swift in Sources */,
+				1000012 /* Views/HistoryView.swift in Sources */,
+				1000013 /* Views/ResultView.swift in Sources */,
+				1000024 /* Views/ManualInputView.swift in Sources */,
+				1000025 /* Views/HexagramTestView.swift in Sources */,
+				1000014 /* Camera/CameraManager.swift in Sources */,
+				1000015 /* Camera/CameraPreview.swift in Sources */,
+				1000016 /* Camera/CameraOverlay.swift in Sources */,
+				1000017 /* Recognition/TemplateManager.swift in Sources */,
+				1000018 /* Recognition/ROICropper.swift in Sources */,
+				1000019 /* Recognition/FeatureMatchService.swift in Sources */,
+				1000020 /* Recognition/CoinValidator.swift in Sources */,
+				1000021 /* Utils/ImageProcessor.swift in Sources */,
+				1000022 /* Utils/ConfidenceCalculator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1000023 /* TianjiAppUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1100001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5000001 /* TianjiApp */;
+			targetProxy = 1200001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A00001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A00002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		B00001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tianji.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B00002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tianji.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		C00001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tianji.appUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = TianjiApp;
+			};
+			name = Debug;
+		};
+		C00002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tianji.appUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = TianjiApp;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6000001 /* Build configuration list for PBXNativeTarget "TianjiApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B00001 /* Debug */,
+				B00002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6000002 /* Build configuration list for PBXProject "TianjiApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00001 /* Debug */,
+				A00002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6000003 /* Build configuration list for PBXNativeTarget "TianjiAppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C00001 /* Debug */,
+				C00002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 9000001 /* Project object */;
+}

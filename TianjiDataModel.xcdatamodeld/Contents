@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22225" systemVersion="23A344" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="CoinProfile" representedClassName="CoinProfileManagedObject" syncable="YES">
+        <attribute name="createdDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" optional="NO" attributeType="String"/>
+        <attribute name="backTemplates" optional="NO" attributeType="Binary"/>
+        <attribute name="frontTemplates" optional="NO" attributeType="Binary"/>
+    </entity>
+    <entity name="DivinationSession" representedClassName="DivinationSessionManagedObject" syncable="YES">
+        <attribute name="date" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="imagePaths" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer"/>
+        <attribute name="profileId" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="roiPaths" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromDataTransformer"/>
+        <attribute name="source" optional="NO" attributeType="String"/>
+        <relationship name="results" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CoinResult" inverseName="session" inverseEntity="CoinResult"/>
+    </entity>
+    <entity name="CoinResult" representedClassName="CoinResultManagedObject" syncable="YES">
+        <attribute name="confidence" optional="NO" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="position" optional="NO" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="side" optional="NO" attributeType="String"/>
+        <attribute name="yinYang" optional="NO" attributeType="String"/>
+        <relationship name="session" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="DivinationSession" inverseName="results" inverseEntity="DivinationSession"/>
+    </entity>
+</model>

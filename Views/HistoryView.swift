@@ -8,50 +8,48 @@ struct HistoryView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            List {
-                if sortedSessions.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.largeTitle)
-                            .foregroundColor(.secondary)
-                        Text("暂无历史记录")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding()
-                } else {
-                    ForEach(sortedSessions) { session in
-                        NavigationLink(destination: SessionDetailView(session: session)) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(formatDate(session.date))
-                                        .font(.headline)
-                                    Text(session.source == "camera" ? "相机拍摄" : "相册选择")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                if let results = session.results, let hexagram = HexagramProvider.findHexagram(by: results.map { $0.yinYang }) {
-                                    Text(hexagram.name)
-                                        .font(.title3)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.blue)
-                                }
+        List {
+            if sortedSessions.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.largeTitle)
+                        .foregroundColor(.secondary)
+                    Text("暂无历史记录")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding()
+            } else {
+                ForEach(sortedSessions) { session in
+                    NavigationLink(destination: SessionDetailView(session: session)) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(formatDate(session.date))
+                                    .font(.headline)
+                                Text(session.source == "camera" ? "相机拍摄" : "相册选择")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            .padding(.vertical, 4)
+
+                            Spacer()
+
+                            if let results = session.results, let hexagram = HexagramProvider.findHexagram(by: results.map { $0.yinYang }) {
+                                Text(hexagram.name)
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.blue)
+                            }
                         }
-                    }
-                    .onDelete { offsets in
-                        deleteSessions(offsets: offsets)
+                        .padding(.vertical, 4)
                     }
                 }
+                .onDelete { offsets in
+                    deleteSessions(offsets: offsets)
+                }
             }
-            .navigationTitle("历史记录")
         }
+        .navigationTitle("历史记录")
     }
     
     private func deleteSessions(offsets: IndexSet) {
@@ -184,21 +182,7 @@ struct SessionDetailView: View {
 
 #Preview {
     let dataStorage = DataStorageManager.shared
-    
-    // Create test session
-    let session = dataStorage.createSession(
-        source: "camera",
-        profileId: UUID(),
-        results: [
-            CoinResult(position: 1, yinYang: .yang, side: .back, confidence: 0.95),
-            CoinResult(position: 2, yinYang: .yang, side: .back, confidence: 0.92),
-            CoinResult(position: 3, yinYang: .yang, side: .back, confidence: 0.88),
-            CoinResult(position: 4, yinYang: .yang, side: .back, confidence: 0.91),
-            CoinResult(position: 5, yinYang: .yang, side: .back, confidence: 0.94),
-            CoinResult(position: 6, yinYang: .yang, side: .back, confidence: 0.96)
-        ]
-    )
-    
+
     return NavigationStack {
         HistoryView()
     }

@@ -12,11 +12,7 @@ struct CameraPreview: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: CameraPreviewView, context: Context) {
-        if isRunning && !uiView.isRunning {
-            uiView.startRunning()
-        } else if !isRunning && uiView.isRunning {
-            uiView.stopRunning()
-        }
+        uiView.session = session
     }
 }
 
@@ -26,10 +22,6 @@ class CameraPreviewView: UIView {
         didSet {
             setupPreviewLayer()
         }
-    }
-    
-    var isRunning: Bool {
-        return previewLayer?.session?.isRunning ?? false
     }
     
     override init(frame: CGRect) {
@@ -54,14 +46,6 @@ class CameraPreviewView: UIView {
         } else {
             previewLayer?.session = session
         }
-    }
-    
-    func startRunning() {
-        session?.startRunning()
-    }
-    
-    func stopRunning() {
-        session?.stopRunning()
     }
     
     override func layoutSubviews() {

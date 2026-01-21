@@ -6,87 +6,85 @@ struct ManualInputView: View {
     @State private var showingResult = false
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // 标题说明
+        ScrollView {
+            VStack(spacing: 20) {
+                // 标题说明
+                VStack(spacing: 6) {
+                    Text("手动输入卦象")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Text("从下到上依次选择第1-6爻的阴阳")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.top, 8)
+
+                // 当前卦象预览（从上到下：上爻→初爻）
+                VStack(spacing: 8) {
+                    Text("当前卦象")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
                     VStack(spacing: 6) {
-                        Text("手动输入卦象")
-                            .font(.title2)
-                            .fontWeight(.bold)
-
-                        Text("从下到上依次选择第1-6爻的阴阳")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top, 8)
-
-                    // 当前卦象预览（从上到下：上爻→初爻）
-                    VStack(spacing: 8) {
-                        Text("当前卦象")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
-                        VStack(spacing: 6) {
-                            // 从上到下显示：上爻(index 5) → 初爻(index 0)
-                            ForEach((0..<6).reversed(), id: \.self) { index in
-                                YaoSymbol(yinYang: yaos[index])
-                                    .frame(width: 100, height: 26)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(10)
-                    }
-
-                    // 6个爻的选择器（从上到下：上爻→初爻）
-                    VStack(spacing: 12) {
-                        // index 0 = 初爻(下卦), index 5 = 上爻(上卦)
-                        // 从上往下排列：position 6, 5, 4, 3, 2, 1
+                        // 从上到下显示：上爻(index 5) → 初爻(index 0)
                         ForEach((0..<6).reversed(), id: \.self) { index in
-                            let position = index + 1  // index 0→position 1, index 5→position 6
-                            YaoPicker(
-                                position: position,
-                                selection: $yaos[index]
-                            )
+                            YaoSymbol(yinYang: yaos[index])
+                                .frame(width: 100, height: 26)
                         }
                     }
-
-                    // 查看结果按钮
-                    Button(action: {
-                        showingResult = true
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.headline)
-
-                            Text("查看结果")
-                                .font(.headline)
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .cornerRadius(10)
-                    }
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-            }
-            .navigationTitle("手动输入")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
-                        dismiss()
+
+                // 6个爻的选择器（从上到下：上爻→初爻）
+                VStack(spacing: 12) {
+                    // index 0 = 初爻(下卦), index 5 = 上爻(上卦)
+                    // 从上往下排列：position 6, 5, 4, 3, 2, 1
+                    ForEach((0..<6).reversed(), id: \.self) { index in
+                        let position = index + 1  // index 0→position 1, index 5→position 6
+                        YaoPicker(
+                            position: position,
+                            selection: $yaos[index]
+                        )
                     }
                 }
+
+                // 查看结果按钮
+                Button(action: {
+                    showingResult = true
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.headline)
+
+                        Text("查看结果")
+                            .font(.headline)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(10)
+                }
+                .padding(.bottom, 8)
             }
-            .navigationDestination(isPresented: $showingResult) {
-                ResultView(yaos: yaos)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .navigationTitle("手动输入")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("取消") {
+                    dismiss()
+                }
             }
+        }
+        .navigationDestination(isPresented: $showingResult) {
+            ResultView(yaos: yaos)
         }
     }
 }

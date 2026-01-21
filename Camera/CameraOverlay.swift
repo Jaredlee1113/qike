@@ -9,59 +9,50 @@ struct CameraOverlay: View {
     }
 
     private func overlayContent(in geometry: GeometryProxy) -> some View {
-        // 槽位配置
-        let slotSize: CGFloat = 100
-        let slotSpacing: CGFloat = 16
-        let totalHeight = CGFloat(6) * slotSize + CGFloat(5) * slotSpacing
-
-        // 计算居中位置
-        let screenWidth = geometry.size.width
-        let screenHeight = geometry.size.height
-        let startY = (screenHeight - totalHeight) / 2
-        let centerX = screenWidth / 2 - slotSize / 2
-
+        let slots = SlotLayout.slots(in: geometry.size)
         return ZStack {
-            // 绘制6个槽位
-            ForEach(0..<6, id: \.self) { index in
-                let position = 6 - index
-                let y = startY + CGFloat(index) * (slotSize + slotSpacing)
+            ForEach(slots) { slot in
+                let rect = slot.rect
+                let labelCenter = SlotLayout.labelCenter(for: rect)
 
-                slotView(at: CGPoint(x: centerX, y: y), size: slotSize, position: position)
+                labelView(position: slot.position)
+                    .frame(width: SlotLayout.labelWidth)
+                    .position(labelCenter)
+
+                slotView(size: rect.size)
+                    .position(x: rect.midX, y: rect.midY)
             }
         }
     }
 
-    private func slotView(at point: CGPoint, size: CGFloat, position: Int) -> some View {
-        
-        HStack(spacing: 12) {
-            // 左侧标签
-            VStack(spacing: 4) {
-                Text("\(position)")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
+    private func labelView(position: Int) -> some View {
+        VStack(spacing: 4) {
+            Text("\(position)")
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
 
-                Text(position <= 3 ? "上卦" : "下卦")
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
-            }
-            .frame(width: 50)
-
-            // 槽位
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.1))
-
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white, lineWidth: 2)
-
-                Image(systemName: "circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.white.opacity(0.3))
-            }
-            .frame(width: size, height: size)
+            Text(position <= 3 ? "下卦" : "上卦")
+                .font(.caption)
+                .foregroundColor(.white.opacity(0.8))
         }
-        .position(x: point.x + 19, y: point.y + size / 2)
+        .shadow(color: Color.black.opacity(0.7), radius: 2, x: 0, y: 1)
+    }
+
+    private func slotView(size: CGSize) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.black.opacity(0.25))
+
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.blue.opacity(0.9), lineWidth: 2)
+
+            Image(systemName: "circle.fill")
+                .font(.system(size: 40))
+                .foregroundColor(.white.opacity(0.6))
+                .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
+        }
+        .frame(width: size.width, height: size.height)
     }
 }
 

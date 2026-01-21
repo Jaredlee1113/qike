@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 
+@MainActor
 class DataStorageManager: ObservableObject {
     static let shared = DataStorageManager()
     

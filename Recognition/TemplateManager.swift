@@ -9,14 +9,14 @@ class TemplateManager {
         
         init(featurePrints: [VNFeaturePrintObservation]) {
             self.featurePrints = featurePrints.compactMap { observation in
-                try? NSKeyedArchiver.archivedData(withRootObject: observation)
+                try? NSKeyedArchiver.archivedData(withRootObject: observation, requiringSecureCoding: true)
             }
             self.createdDate = Date()
         }
         
         func getObservations() -> [VNFeaturePrintObservation] {
             return featurePrints.compactMap { data in
-                try? NSKeyedUnarchiver.unarchiveObject(with: data) as? VNFeaturePrintObservation
+                try? NSKeyedUnarchiver.unarchivedObject(ofClass: VNFeaturePrintObservation.self, from: data)
             }
         }
     }
@@ -25,7 +25,8 @@ class TemplateManager {
         var featurePrints: [VNFeaturePrintObservation] = []
         
         for image in images {
-            if let featurePrint = await generateFeaturePrint(from: image) {
+            let processed = ImageProcessor.prepareForMatching(image)
+            if let featurePrint = await generateFeaturePrint(from: processed) {
                 featurePrints.append(featurePrint)
             }
         }
@@ -49,13 +50,14 @@ class TemplateManager {
 
             let request = VNGenerateImageFeaturePrintRequest { request, error in
                 if let error = error {
-                    print("Feature print generation error: \(error.localizedDescription)")
+                    debugLog("feature print error: \(error.localizedDescription)")
                     resumeOnce(nil)
                     return
                 }
                 
                 guard let observations = request.results as? [VNFeaturePrintObservation],
                       let featurePrint = observations.first else {
+                    debugLog("feature print missing in results")
                     resumeOnce(nil)
                     return
                 }
@@ -68,7 +70,7 @@ class TemplateManager {
             do {
                 try handler.perform([request])
             } catch {
-                print("Failed to generate feature print: \(error)")
+                debugLog("feature print perform failed: \(error)")
                 resumeOnce(nil)
             }
         }
@@ -80,5 +82,11 @@ class TemplateManager {
     
     static func deserializeTemplateData(_ data: Data) -> TemplateData? {
         return try? JSONDecoder().decode(TemplateData.self, from: data)
+    }
+
+    private static func debugLog(_ message: String) {
+        #if DEBUG
+        print("TemplateManager: \(message)")
+        #endif
     }
 }

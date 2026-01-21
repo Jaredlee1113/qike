@@ -20,116 +20,114 @@ struct SetupProfileView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("铜钱配置") {
-                    TextField("配置名称", text: $profileName)
-                        .textInputAutocapitalization(.words)
+        Form {
+            Section("铜钱配置") {
+                TextField("配置名称", text: $profileName)
+                    .textInputAutocapitalization(.words)
+            }
+            
+            Section("字面模板 (阴面)") {
+                HStack {
+                    Text("模板数量: \(frontTemplateImages.count)")
+                    Spacer()
+                    Button("添加") {
+                        pickerType = .front
+                        showingImagePicker = true
+                    }
+                    .disabled(frontTemplateImages.count >= 5)
                 }
                 
-                Section("字面模板 (阴面)") {
-                    HStack {
-                        Text("模板数量: \(frontTemplateImages.count)")
-                        Spacer()
-                        Button("添加") {
-                            pickerType = .front
-                            showingImagePicker = true
-                        }
-                        .disabled(frontTemplateImages.count >= 5)
-                    }
-                    
-                    if !frontTemplateImages.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack {
-                                ForEach(0..<frontTemplateImages.count, id: \.self) { index in
-                                    ZStack(alignment: .topTrailing) {
-                                        Image(uiImage: frontTemplateImages[index])
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(height: 80)
-                                            .cornerRadius(8)
-                                        
-                                        Button(action: {
-                                            frontTemplateImages.remove(at: index)
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(.red)
-                                        }
+                if !frontTemplateImages.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(0..<frontTemplateImages.count, id: \.self) { index in
+                                ZStack(alignment: .topTrailing) {
+                                    Image(uiImage: frontTemplateImages[index])
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(height: 80)
+                                        .cornerRadius(8)
+                                    
+                                    Button(action: {
+                                        frontTemplateImages.remove(at: index)
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.red)
                                     }
-                                    .padding(.horizontal, 4)
                                 }
+                                .padding(.horizontal, 4)
                             }
                         }
                     }
                 }
-                
-                Section("图案面模板 (阳面)") {
-                    HStack {
-                        Text("模板数量: \(backTemplateImages.count)")
-                        Spacer()
-                        Button("添加") {
-                            pickerType = .back
-                            showingImagePicker = true
-                        }
-                        .disabled(backTemplateImages.count >= 5)
+            }
+            
+            Section("图案面模板 (阳面)") {
+                HStack {
+                    Text("模板数量: \(backTemplateImages.count)")
+                    Spacer()
+                    Button("添加") {
+                        pickerType = .back
+                        showingImagePicker = true
                     }
-                    
-                    if !backTemplateImages.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack {
-                                ForEach(0..<backTemplateImages.count, id: \.self) { index in
-                                    ZStack(alignment: .topTrailing) {
-                                        Image(uiImage: backTemplateImages[index])
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(height: 80)
-                                            .cornerRadius(8)
-                                        
-                                        Button(action: {
-                                            backTemplateImages.remove(at: index)
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(.red)
-                                        }
+                    .disabled(backTemplateImages.count >= 5)
+                }
+                
+                if !backTemplateImages.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(0..<backTemplateImages.count, id: \.self) { index in
+                                ZStack(alignment: .topTrailing) {
+                                    Image(uiImage: backTemplateImages[index])
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(height: 80)
+                                        .cornerRadius(8)
+                                    
+                                    Button(action: {
+                                        backTemplateImages.remove(at: index)
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.red)
                                     }
-                                    .padding(.horizontal, 4)
                                 }
+                                .padding(.horizontal, 4)
                             }
                         }
                     }
                 }
-                
-                Section("提示") {
-                    Text("请提供3-5张铜钱正反面的清晰照片作为模板。模板照片建议在不同角度和光照下拍摄，以提高识别准确度。")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            }
+            
+            Section("提示") {
+                Text("请提供3-5张铜钱正反面的清晰照片作为模板。模板照片建议在不同角度和光照下拍摄，以提高识别准确度。")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .navigationTitle("设置铜钱模板")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("取消") {
+                    dismiss()
                 }
             }
-            .navigationTitle("设置铜钱模板")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
-                        dismiss()
-                    }
+            
+            ToolbarItem(placement: .confirmationAction) {
+                Button("保存") {
+                    saveProfile()
                 }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") {
-                        saveProfile()
-                    }
-                    .disabled(profileName.isEmpty || frontTemplateImages.isEmpty || backTemplateImages.isEmpty)
-                }
+                .disabled(profileName.isEmpty || frontTemplateImages.isEmpty || backTemplateImages.isEmpty)
             }
-            .sheet(isPresented: $showingImagePicker) {
-                ImagePicker(selectedImages: pickerType == .front ? $frontTemplateImages : $backTemplateImages)
-            }
-            .alert("提示", isPresented: $showingAlert) {
-                Button("确定", role: .cancel) { }
-            } message: {
-                if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                }
+        }
+        .sheet(isPresented: $showingImagePicker) {
+            ImagePicker(selectedImages: pickerType == .front ? $frontTemplateImages : $backTemplateImages)
+        }
+        .alert("提示", isPresented: $showingAlert) {
+            Button("确定", role: .cancel) { }
+        } message: {
+            if let errorMessage = errorMessage {
+                Text(errorMessage)
             }
         }
     }
@@ -142,24 +140,27 @@ struct SetupProfileView: View {
                 
                 guard let frontData = TemplateManager.serializeTemplateData(frontTemplateData),
                       let backData = TemplateManager.serializeTemplateData(backTemplateData) else {
-                    errorMessage = "模板生成失败"
-                    showingAlert = true
+                    await MainActor.run {
+                        errorMessage = "模板生成失败"
+                        showingAlert = true
+                    }
                     return
                 }
-                
-                dataStorage.createProfile(
-                    name: profileName,
-                    frontTemplates: frontData,
-                    backTemplates: backData
-                )
-                
+
                 await MainActor.run {
+                    dataStorage.createProfile(
+                        name: profileName,
+                        frontTemplates: frontData,
+                        backTemplates: backData
+                    )
                     dismiss()
                 }
                 
             } catch {
-                errorMessage = "保存失败: \(error.localizedDescription)"
-                showingAlert = true
+                await MainActor.run {
+                    errorMessage = "保存失败: \(error.localizedDescription)"
+                    showingAlert = true
+                }
             }
         }
     }

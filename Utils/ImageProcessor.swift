@@ -2,6 +2,36 @@ import UIKit
 import Vision
 
 class ImageProcessor {
+    static func normalizeOrientation(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+
+        UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
+        image.draw(in: CGRect(origin: .zero, size: image.size))
+        let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+
+        return normalizedImage ?? image
+    }
+
+    static func centerCropToSquare(_ image: UIImage) -> UIImage {
+        guard let cgImage = image.cgImage else { return image }
+        let width = CGFloat(cgImage.width)
+        let height = CGFloat(cgImage.height)
+        let side = min(width, height)
+        let originX = (width - side) / 2
+        let originY = (height - side) / 2
+        let rect = CGRect(x: originX, y: originY, width: side, height: side)
+
+        guard let cropped = cgImage.cropping(to: rect) else { return image }
+        return UIImage(cgImage: cropped)
+    }
+
+    static func prepareForMatching(_ image: UIImage, targetSize: CGSize = CGSize(width: 299, height: 299)) -> UIImage {
+        let normalized = normalizeOrientation(image)
+        let squared = centerCropToSquare(normalized)
+        return resizeImage(squared, targetSize: targetSize)
+    }
+
     static func cropROI(from image: UIImage, rect: CGRect) -> UIImage? {
         guard let cgImage = image.cgImage else { return nil }
         

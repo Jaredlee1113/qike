@@ -2,53 +2,68 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var dataStorage: DataStorageManager
+
+    private var showDebugTools: Bool {
+        #if DEBUG
+        true
+        #else
+        false
+        #endif
+    }
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Spacer()
-                
-                Text("起的课")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .padding()
-                
-                Text("金钱卦识别")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-                    .padding()
-                
-                Spacer()
-                
-                VStack(spacing: 15) {
+            VStack(spacing: 16) {
+                HStack {
                     NavigationLink(destination: SetupProfileView()) {
-                        Label("设置铜钱模板", systemImage: "person.circle")
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    NavigationLink(destination: CameraView()) {
-                        Label("开始起课", systemImage: "camera")
+                        Label("设置模板", systemImage: "person.circle")
                     }
                     .buttonStyle(.bordered)
 
-                    NavigationLink(destination: ManualInputView()) {
-                        Label("手动输入", systemImage: "hand.tap")
-                    }
-                    .buttonStyle(.bordered)
-
-                    NavigationLink(destination: HexagramTestView()) {
-                        Label("卦象测试", systemImage: "ladybug.fill")
-                    }
-                    .buttonStyle(.bordered)
+                    Spacer()
 
                     NavigationLink(destination: HistoryView()) {
                         Label("历史记录", systemImage: "clock.arrow.circlepath")
                     }
                     .buttonStyle(.bordered)
                 }
-                .padding()
-                
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+
                 Spacer()
+
+                NavigationLink(destination: CameraView()) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "camera.viewfinder")
+                            .font(.system(size: 48, weight: .semibold))
+
+                        Text("开始起课")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.blue, Color.blue.opacity(0.75)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .cornerRadius(24)
+                    .padding(.horizontal, 24)
+                    .shadow(color: Color.blue.opacity(0.3), radius: 12, x: 0, y: 6)
+                }
+
+                Spacer()
+
+                if showDebugTools {
+                    NavigationLink(destination: HexagramTestView()) {
+                        Label("卦象测试", systemImage: "ladybug.fill")
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.bottom, 12)
+                }
             }
             .navigationTitle("起的课")
             .navigationBarHidden(true)

@@ -3,6 +3,9 @@ import Vision
 import CoreGraphics
 
 class ConfidenceCalculator {
+    private static let maxMatchDistance: Float = 1.5
+    private static let minDistanceGap: Float = 0.005
+
     static func calculateConfidence(
         frontDistance: Float,
         backDistance: Float
@@ -12,15 +15,26 @@ class ConfidenceCalculator {
         guard totalDistance > 0 else {
             return (.invalid, 0.0)
         }
+
+        let minDistance = min(frontDistance, backDistance)
+        let distanceGap = abs(frontDistance - backDistance)
+
+        guard minDistance.isFinite,
+              minDistance <= maxMatchDistance,
+              distanceGap >= minDistanceGap else {
+            debugLog("invalid match minDistance=\(minDistance) gap=\(distanceGap)")
+            return (.invalid, 0.0)
+        }
         
         let frontConfidence = 1.0 - Double(frontDistance / totalDistance)
         let backConfidence = 1.0 - Double(backDistance / totalDistance)
-        
-        let confidenceThreshold: Double = 0.3
-        let minConfidence = max(frontConfidence, backConfidence)
-        
-        if minConfidence < confidenceThreshold {
-            return (.invalid, minConfidence)
+
+        let confidenceThreshold: Double = 0.35
+        let baseConfidence = max(frontConfidence, backConfidence)
+
+        if baseConfidence < confidenceThreshold {
+            debugLog("low confidence base=\(baseConfidence) threshold=\(confidenceThreshold)")
+            return (.invalid, baseConfidence)
         }
         
         if backConfidence > frontConfidence {
@@ -28,6 +42,12 @@ class ConfidenceCalculator {
         } else {
             return (.front, frontConfidence)
         }
+    }
+
+    private static func debugLog(_ message: String) {
+        #if DEBUG
+        print("Confidence: \(message)")
+        #endif
     }
     
     static func isCoinValid(contourObservation: Any) -> Bool {

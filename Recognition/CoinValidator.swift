@@ -18,12 +18,13 @@ class CoinValidator {
 
             let request = VNDetectContoursRequest { request, error in
                 if let error = error {
-                    print("Contour detection error: \(error.localizedDescription)")
+                    debugLog("contour error: \(error.localizedDescription)")
                     resumeOnce(false)
                     return
                 }
                 
                 guard let observations = request.results, !observations.isEmpty else {
+                    debugLog("no contours detected")
                     resumeOnce(false)
                     return
                 }
@@ -39,7 +40,7 @@ class CoinValidator {
             do {
                 try handler.perform([request])
             } catch {
-                print("Failed to perform contour detection: \(error)")
+                debugLog("contour perform failed: \(error)")
                 resumeOnce(false)
             }
         }
@@ -60,5 +61,11 @@ class CoinValidator {
         }
         
         return results
+    }
+
+    private static func debugLog(_ message: String) {
+        #if DEBUG
+        print("CoinValidator: \(message)")
+        #endif
     }
 }

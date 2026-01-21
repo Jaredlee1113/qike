@@ -6,7 +6,7 @@
 	objectVersion = 56;
 	objects = {
 
-
+/* Begin PBXBuildFile section */
 		1000001 /* App/TianjiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000001 /* App/TianjiApp.swift */; };
 		1000002 /* App/ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000002 /* App/ContentView.swift */; };
 		1000003 /* Resources/Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2000003 /* Resources/Assets.xcassets */; };
@@ -32,6 +32,10 @@
 		1000023 /* TianjiAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000023 /* TianjiAppUITests.swift */; };
 		1000024 /* Views/ManualInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000024 /* Views/ManualInputView.swift */; };
 		1000025 /* Views/HexagramTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000025 /* Views/HexagramTestView.swift */; };
+		1000028 /* Views/CoinConfirmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000028 /* Views/CoinConfirmView.swift */; };
+		1000026 /* Utils/SlotLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000026 /* Utils/SlotLayout.swift */; };
+		1000027 /* Recognition/CoinDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000027 /* Recognition/CoinDetector.swift */; };
+		48FDD31E2F1E7CB800848679 /* HexagramImages in Resources */ = {isa = PBXBuildFile; fileRef = 737142052D26416AA504BBE8 /* HexagramImages */; };
 		6199290CA9484812991AA301 /* HexagramImages in Resources */ = {isa = PBXBuildFile; fileRef = 737142052D26416AA504BBE8 /* HexagramImages */; };
 /* End PBXBuildFile section */
 
@@ -71,6 +75,9 @@
 		2000023 /* TianjiAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TianjiAppUITests.swift; sourceTree = "<group>"; };
 		2000024 /* Views/ManualInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ManualInputView.swift; sourceTree = "<group>"; };
 		2000025 /* Views/HexagramTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HexagramTestView.swift; sourceTree = "<group>"; };
+		2000028 /* Views/CoinConfirmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/CoinConfirmView.swift; sourceTree = "<group>"; };
+		2000026 /* Utils/SlotLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/SlotLayout.swift; sourceTree = "<group>"; };
+		2000027 /* Recognition/CoinDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recognition/CoinDetector.swift; sourceTree = "<group>"; };
 		3000001 /* TianjiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TianjiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3000002 /* TianjiAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TianjiAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		737142052D26416AA504BBE8 /* HexagramImages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HexagramImages; sourceTree = "<group>"; };
@@ -119,6 +126,7 @@
 				2000013 /* Views/ResultView.swift */,
 				2000024 /* Views/ManualInputView.swift */,
 				2000025 /* Views/HexagramTestView.swift */,
+				2000028 /* Views/CoinConfirmView.swift */,
 				2000014 /* Camera/CameraManager.swift */,
 				2000015 /* Camera/CameraPreview.swift */,
 				2000016 /* Camera/CameraOverlay.swift */,
@@ -126,8 +134,10 @@
 				2000018 /* Recognition/ROICropper.swift */,
 				2000019 /* Recognition/FeatureMatchService.swift */,
 				2000020 /* Recognition/CoinValidator.swift */,
+				2000027 /* Recognition/CoinDetector.swift */,
 				2000021 /* Utils/ImageProcessor.swift */,
 				2000022 /* Utils/ConfidenceCalculator.swift */,
+				2000026 /* Utils/SlotLayout.swift */,
 				0000005 /* Resources */,
 			);
 			sourceTree = "<group>";
@@ -249,7 +259,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6199290CA9484812991AA301 /* HexagramImages in Resources */,
+				48FDD31E2F1E7CB800848679 /* HexagramImages in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -273,6 +283,7 @@
 				1000013 /* Views/ResultView.swift in Sources */,
 				1000024 /* Views/ManualInputView.swift in Sources */,
 				1000025 /* Views/HexagramTestView.swift in Sources */,
+				1000028 /* Views/CoinConfirmView.swift in Sources */,
 				1000014 /* Camera/CameraManager.swift in Sources */,
 				1000015 /* Camera/CameraPreview.swift in Sources */,
 				1000016 /* Camera/CameraOverlay.swift in Sources */,
@@ -280,8 +291,10 @@
 				1000018 /* Recognition/ROICropper.swift in Sources */,
 				1000019 /* Recognition/FeatureMatchService.swift in Sources */,
 				1000020 /* Recognition/CoinValidator.swift in Sources */,
+				1000027 /* Recognition/CoinDetector.swift in Sources */,
 				1000021 /* Utils/ImageProcessor.swift in Sources */,
 				1000022 /* Utils/ConfidenceCalculator.swift in Sources */,
+				1000026 /* Utils/SlotLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -430,8 +443,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 2HYLZDJC2R;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required to capture coin images.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -442,7 +456,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tianji.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lyjtianji.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -457,8 +471,9 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 2HYLZDJC2R;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required to capture coin images.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -469,7 +484,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tianji.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.lyjtianji.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

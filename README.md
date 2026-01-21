@@ -8,7 +8,7 @@
 
 ### 核心技术栈
 - **UI框架**: SwiftUI
-- **图像识别**: Vision Framework (Feature Print模板匹配)
+- **图像识别**: Vision Framework (目标检测 + Feature Print模板匹配)
 - **相机功能**: AVFoundation
 - **数据存储**: SwiftData
 - **部署目标**: iOS 16+
@@ -56,17 +56,18 @@ TianjiApp/
 ## 核心功能
 
 ### 1. 铜钱模板设置
-- 用户上传3-5张铜钱正反面照片
-- 使用Vision Framework生成Feature Print特征
+- 用户录入正面/反面模板照片（可多张，建议不同光照/角度）
+- 录入时对单枚铜钱做引导裁剪与标准化，生成Feature Print特征
 - 模板数据存储在SwiftData中
 
 ### 2. 图像识别流程
-1. 用户在6个垂直槽位中放置铜钱
-2. 拍照并按槽位坐标裁剪ROI
-3. 轮廓检测验证铜钱有效性
-4. Feature Print模板匹配识别正反面
-5. 置信度计算和结果验证
-6. 生成6爻数组并转换为卦象
+1. 相机实时帧输入
+2. 目标检测模型输出coin候选框（VNCoreMLRequest）
+3. 规则筛选与评分，选出最优6枚并按垂直一列排序
+4. 对每个ROI做标准化处理，生成Feature Print
+5. 与正/反模板特征计算距离，输出正/反/不确定
+6. 时间平滑与置信度校验
+7. 生成6爻数组并转换为卦象
 
 ### 3. 卦象转换和显示
 - 将6爻数组映射到64卦之一
@@ -106,19 +107,26 @@ TianjiApp/
 
 ## 识别算法
 
+### 两阶段流水线（推荐）
+1. **目标检测**: 使用自定义检测模型定位6枚铜钱（VNCoreMLRequest）
+2. **规则筛选**: 过滤低置信度/面积离群候选
+3. **几何约束**: 垂直一列对齐、间距均匀、不重叠
+4. **特征匹配**: ROI生成Feature Print，与正/反模板计算距离
+5. **置信度与不确定**: 距离差过小则输出uncertain，提示重新摆放或录入模板
+
 ### 模板匹配流程
-1. **特征提取**: 使用VNGenerateImageFeaturePrintRequest生成视觉特征
-2. **ROI裁剪**: 按6个槽位坐标裁剪感兴趣区域
-3. **有效性验证**: 使用VNDetectContoursRequest检测铜钱轮廓
-4. **特征匹配**: 计算ROI特征与模板特征的欧氏距离
-5. **置信度计算**: 基于距离差值计算识别置信度
-6. **结果判定**: 置信度>0.3且距离差值足够大才接受结果
+1. **特征提取**: VNGenerateImageFeaturePrintRequest生成视觉特征
+2. **ROI裁剪**: 由检测框裁剪ROI并做居中/缩放/圆形mask
+3. **特征匹配**: 计算ROI特征与模板特征的距离
+4. **置信度计算**: 基于距离差值计算识别置信度
+5. **结果判定**: 距离差值过小进入不确定区间
 
 ### 置信度计算
 ```swift
 confidence = 1.0 - (min_distance / total_distance)
 side = front_distance < back_distance ? front : back
 ```
+注：阈值需要用样本标定，不同iOS版本/机型的Feature Print距离分布可能不同。
 
 ## 用户界面
 

@@ -5,13 +5,32 @@ import UIKit
 class TemplateManager {
     struct TemplateData: Codable {
         let featurePrints: [Data]
+        let descriptors: [[Float]]
         let createdDate: Date
+
+        enum CodingKeys: String, CodingKey {
+            case featurePrints
+            case descriptors
+            case createdDate
+        }
         
-        init(featurePrints: [VNFeaturePrintObservation]) {
+        init(
+            featurePrints: [VNFeaturePrintObservation],
+            descriptors: [[Float]] = [],
+            createdDate: Date = Date()
+        ) {
             self.featurePrints = featurePrints.compactMap { observation in
                 try? NSKeyedArchiver.archivedData(withRootObject: observation, requiringSecureCoding: true)
             }
-            self.createdDate = Date()
+            self.descriptors = descriptors
+            self.createdDate = createdDate
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            featurePrints = try container.decode([Data].self, forKey: .featurePrints)
+            descriptors = try container.decodeIfPresent([[Float]].self, forKey: .descriptors) ?? []
+            createdDate = try container.decodeIfPresent(Date.self, forKey: .createdDate) ?? Date()
         }
         
         func getObservations() -> [VNFeaturePrintObservation] {
@@ -19,19 +38,44 @@ class TemplateManager {
                 try? NSKeyedUnarchiver.unarchivedObject(ofClass: VNFeaturePrintObservation.self, from: data)
             }
         }
+
+        func getDescriptors() -> [[Float]] {
+            descriptors
+        }
     }
     
-    static func createTemplates(from images: [UIImage]) async -> TemplateData {
+    static func createTemplates(
+        from images: [UIImage],
+        includeFeaturePrints: Bool = false,
+        useCoinDetection: Bool = false
+    ) async -> TemplateData {
         var featurePrints: [VNFeaturePrintObservation] = []
-        
+        var descriptors: [[Float]] = []
+
         for image in images {
-            let processed = ImageProcessor.prepareForMatching(image)
-            if let featurePrint = await generateFeaturePrint(from: processed) {
-                featurePrints.append(featurePrint)
+            let normalized = ImageProcessor.normalizeOrientation(image)
+            let reduced = ImageProcessor.downscaleImage(normalized, maxDimension: 512)
+
+            let sourceImage: UIImage
+            if useCoinDetection, let detected = await CoinDetector.detectSingleCoinFast(from: reduced) {
+                sourceImage = detected.maskedImage ?? detected.image
+            } else {
+                sourceImage = reduced
+            }
+
+            if let descriptor = ImageProcessor.coinDescriptor(for: sourceImage) {
+                descriptors.append(descriptor)
+            }
+
+            if includeFeaturePrints {
+                let processed = ImageProcessor.prepareCoinForMatching(sourceImage)
+                if let featurePrint = await generateFeaturePrint(from: processed) {
+                    featurePrints.append(featurePrint)
+                }
             }
         }
-        
-        return TemplateData(featurePrints: featurePrints)
+
+        return TemplateData(featurePrints: featurePrints, descriptors: descriptors)
     }
     
     static func generateFeaturePrint(from image: UIImage) async -> VNFeaturePrintObservation? {

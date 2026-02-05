@@ -9,50 +9,21 @@ struct CameraOverlay: View {
     }
 
     private func overlayContent(in geometry: GeometryProxy) -> some View {
-        let slots = SlotLayout.slots(in: geometry.size)
+        let layout = SlotLayout.layoutNormalized(in: geometry.size)
+        let columnRect = layout.columnRect
         return ZStack {
-            ForEach(slots) { slot in
-                let rect = slot.rect
-                let labelCenter = SlotLayout.labelCenter(for: rect)
-
-                labelView(position: slot.position)
-                    .frame(width: SlotLayout.labelWidth)
-                    .position(labelCenter)
-
-                slotView(size: rect.size)
-                    .position(x: rect.midX, y: rect.midY)
-            }
+            columnGuide(rect: columnRect, fullHeight: geometry.size.height)
         }
     }
 
-    private func labelView(position: Int) -> some View {
-        VStack(spacing: 4) {
-            Text("\(position)")
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-
-            Text(position <= 3 ? "下卦" : "上卦")
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.8))
+    private func columnGuide(rect: CGRect, fullHeight: CGFloat) -> some View {
+        Path { path in
+            path.move(to: CGPoint(x: rect.minX, y: 0))
+            path.addLine(to: CGPoint(x: rect.minX, y: fullHeight))
+            path.move(to: CGPoint(x: rect.maxX, y: 0))
+            path.addLine(to: CGPoint(x: rect.maxX, y: fullHeight))
         }
-        .shadow(color: Color.black.opacity(0.7), radius: 2, x: 0, y: 1)
-    }
-
-    private func slotView(size: CGSize) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.black.opacity(0.25))
-
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.blue.opacity(0.9), lineWidth: 2)
-
-            Image(systemName: "circle.fill")
-                .font(.system(size: 40))
-                .foregroundColor(.white.opacity(0.6))
-                .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
-        }
-        .frame(width: size.width, height: size.height)
+        .stroke(Color.blue.opacity(0.9), lineWidth: 2)
     }
 }
 

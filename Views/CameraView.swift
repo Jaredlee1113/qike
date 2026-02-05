@@ -7,10 +7,10 @@ struct CameraView: View {
     @EnvironmentObject var dataStorage: DataStorageManager
 
     @StateObject private var cameraManager = CameraManager()
+    @StateObject private var liveDetector = LiveDetectionController()
     @State private var capturedImage: UIImage?
     @State private var showingResult = false
     @State private var showingConfirm = false
-    @State private var pendingShowResult = false
     @State private var processing = false
     @State private var processingStage: String?
     @State private var errorMessage: String?
@@ -20,6 +20,10 @@ struct CameraView: View {
     @State private var showingPhotoPicker = false
     @State private var pickedImage: UIImage?
     @State private var detectedCoins: [CoinDetector.DetectedCoin] = []
+    @State private var suggestedResults: [CoinResult] = []
+    @State private var showAlignHint = true
+    @State private var autoPresenting = false
+    @State private var previewSize: CGSize = .zero
 
     @State private var cameraAuthorization = AVCaptureDevice.authorizationStatus(for: .video)
     @State private var isRequestingPermission = false
@@ -47,6 +51,17 @@ struct CameraView: View {
             CameraPreview(session: cameraManager.sessionProxy, isRunning: $cameraManager.isSessionRunning)
                 .edgesIgnoringSafeArea(.all)
 
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear {
+                        updatePreviewSize(geo.size)
+                    }
+                    .onChange(of: geo.size) { newSize in
+                        updatePreviewSize(newSize)
+                    }
+            }
+            .allowsHitTesting(false)
+
             uiLayer
 
             if capturedImage == nil {
@@ -60,16 +75,41 @@ struct CameraView: View {
                 errorMessage = "请先设置铜钱模板"
                 showingAlert = true
             }
+            liveDetector.updateProfile(dataStorage.profiles.first)
+            cameraManager.onFrame = { [weak liveDetector] pixelBuffer, _ in
+                liveDetector?.handleFrame(pixelBuffer)
+            }
+            updateLiveDetectionState()
             updateCameraAuthorization()
+            scheduleAlignHintDismissal()
         }
         .onDisappear {
             cameraManager.stopSession()
+            cameraManager.onFrame = nil
+            liveDetector.reset()
         }
-        .onChange(of: showingConfirm) { isShowing in
-            if !isShowing && pendingShowResult {
-                pendingShowResult = false
-                showingResult = true
+        .onReceive(dataStorage.$profiles) { profiles in
+            liveDetector.updateProfile(profiles.first)
+        }
+        .onChange(of: capturedImage) { _ in
+            updateLiveDetectionState()
+        }
+        .onChange(of: showingConfirm) { _ in
+            updateLiveDetectionState()
+        }
+        .onReceive(liveDetector.$results) { results in
+            guard capturedImage == nil, !showingResult, !showingConfirm else { return }
+            guard isResultReady(results) else { return }
+            detectedCoins = liveDetector.detections
+            suggestedResults = results
+            debugMatchResults = results
+            showingConfirm = true
+        }
+        .onChange(of: showingResult) { newValue in
+            if !newValue {
+                autoPresenting = false
             }
+            updateLiveDetectionState()
         }
         .alert("提示", isPresented: $showingAlert) {
             Button("确定", role: .cancel) {
@@ -82,9 +122,25 @@ struct CameraView: View {
                 Text(errorMessage)
             }
         }
-        .sheet(isPresented: $showingConfirm) {
+        .fullScreenCover(isPresented: $showingResult) {
+            if let lastSession = dataStorage.getSortedSessions().first,
+               let yaos = lastSession.results?.map({ $0.yinYang }) {
+                NavigationStack {
+                    ResultView(yaos: yaos)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("关闭") {
+                                    showingResult = false
+                                }
+                            }
+                        }
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showingConfirm) {
             CoinConfirmView(
                 detections: detectedCoins,
+                suggestedResults: suggestedResults,
                 isProcessing: processing,
                 onConfirm: handleConfirm,
                 onRetake: {
@@ -92,17 +148,15 @@ struct CameraView: View {
                     capturedImage = nil
                     detectedCoins = []
                     debugMatchResults = []
+                    suggestedResults = []
                 },
                 onRedetect: {
-                    runDetection(showConfirm: false)
+                    if capturedImage != nil {
+                        showingConfirm = false
+                        runDetection(showConfirmAfterMatch: true)
+                    }
                 }
             )
-        }
-        .sheet(isPresented: $showingResult) {
-            if let lastSession = dataStorage.getSortedSessions().first,
-               let yaos = lastSession.results?.map({ $0.yinYang }) {
-                ResultView(yaos: yaos)
-            }
         }
         .sheet(isPresented: $showingManualInput) {
             NavigationStack {
@@ -130,45 +184,57 @@ struct CameraView: View {
     }
 
     private var captureLayer: some View {
-        Color.clear
-            .safeAreaInset(edge: .top, spacing: 0) {
-                topHint
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                bottomControls
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onChange(of: pickedImage) { newImage in
-                guard let image = newImage else { return }
-                capturedImage = image
-                pickedImage = nil
-                detectedCoins = []
-                debugMatchResults = []
-                processImage()
-            }
+        ZStack {
+            CameraOverlay()
+                .allowsHitTesting(false)
+
+            Color.clear
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    topHint
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    bottomControls
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onChange(of: pickedImage) { newImage in
+                    guard let image = newImage else { return }
+                    capturedImage = image
+                    pickedImage = nil
+                    detectedCoins = []
+                    debugMatchResults = []
+                    suggestedResults = []
+                    processImage()
+                }
+        }
     }
 
     private var topHint: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("对齐铜钱")
-                    .font(.headline)
-                    .foregroundColor(.white)
+            if showAlignHint {
+                HStack {
+                    Text("对齐铜钱")
+                        .font(.headline)
+                        .foregroundColor(.white)
 
-                Spacer()
+                    Spacer()
 
-                progressDots
+                    progressDots
+                }
+
+                Text("将6枚铜钱从上到下摆成一列，对齐中间竖条")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
             }
-
-            Text("将6枚铜钱从上到下摆成一列，依次为第1-6爻")
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.8))
 
             if isCameraAuthorized && !cameraManager.isSessionRunning {
                 Text("相机启动中…")
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.7))
             }
+
+            Text(liveDetector.statusText)
+                .font(.caption2)
+                .foregroundColor(.white.opacity(0.8))
         }
         .padding(12)
         .background(Color.black.opacity(0.6))
@@ -189,8 +255,6 @@ struct CameraView: View {
 
     private var bottomControls: some View {
         VStack(spacing: 14) {
-            captureButton
-
             HStack(spacing: 12) {
                 secondaryButton(title: "相册选择") {
                     showingPhotoPicker = true
@@ -204,25 +268,6 @@ struct CameraView: View {
                     showingSetupProfile = true
                 }
             }
-
-            #if DEBUG
-            VStack(spacing: 8) {
-                Toggle("保存调试图", isOn: $debugSaveImages)
-                Toggle("显示识别框", isOn: $debugShowOverlay)
-                Button("导出调试图") {
-                    prepareDebugShare()
-                }
-                .buttonStyle(.bordered)
-                .disabled(lastDebugFolderURL == nil)
-            }
-            .toggleStyle(SwitchToggleStyle(tint: .blue))
-            .font(.caption2)
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.black.opacity(0.6))
-            .cornerRadius(12)
-            #endif
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
@@ -239,46 +284,6 @@ struct CameraView: View {
                 .background(Color.black.opacity(0.6))
                 .cornerRadius(16)
         }
-    }
-
-    private var captureButton: some View {
-        let isEnabled = isCameraReady && !processing
-        return Button(action: {
-            triggerCaptureFeedback()
-            cameraManager.capturePhoto { image in
-                capturedImage = image
-                detectedCoins = []
-                debugMatchResults = []
-            }
-        }) {
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 84, height: 84)
-
-                    Circle()
-                        .stroke(Color.blue, lineWidth: 4)
-                        .frame(width: 74, height: 74)
-
-                    Circle()
-                        .fill(Color.blue)
-                        .frame(width: 64, height: 64)
-                }
-
-                Text("点击拍摄")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.6))
-                    .cornerRadius(20)
-            }
-        }
-        .disabled(!isEnabled)
-        .opacity(isEnabled ? 1 : 0.5)
-        .padding(.bottom, 6)
     }
 
     private func previewLayer(image: UIImage) -> some View {
@@ -313,6 +318,7 @@ struct CameraView: View {
                             capturedImage = nil
                             detectedCoins = []
                             debugMatchResults = []
+                            suggestedResults = []
                         }) {
                             VStack(spacing: 4) {
                                 Image(systemName: "arrow.counterclockwise")
@@ -492,17 +498,11 @@ struct CameraView: View {
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
 
-    private func triggerCaptureFeedback() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.prepare()
-        generator.impactOccurred()
-    }
-
     private func processImage() {
-        runDetection(showConfirm: true)
+        runDetection(showConfirmAfterMatch: true)
     }
 
-    private func runDetection(showConfirm: Bool) {
+    private func runDetection(showConfirmAfterMatch: Bool) {
         guard !dataStorage.profiles.isEmpty else {
             errorMessage = "请先设置铜钱模板"
             showingAlert = true
@@ -519,18 +519,46 @@ struct CameraView: View {
         debugLog("normalized image size=\(normalizedImage.size.width)x\(normalizedImage.size.height) orientation=\(normalizedImage.imageOrientation.rawValue)")
 
         processing = true
-        processingStage = showConfirm ? "检测铜钱…" : "重新检测…"
+        processingStage = "检测铜钱…"
 
         Task {
             do {
                 await MainActor.run {
                     debugMatchResults = []
+                    suggestedResults = []
                 }
 
-                let foundCoins = await CoinDetector.detectCoins(from: normalizedImage)
+                let foundCoins = ROICropper.slotDetections(for: normalizedImage, in: previewSize)
+                let presenceCalibration = ImageProcessor.CoinPresenceCalibration.default
+                let validCoins = foundCoins.filter { detection in
+                    let presenceScales: [CGFloat] = [1.0, 0.75]
+                    var isPresent = false
+                    var lastMetrics: ImageProcessor.CoinPresenceMetrics?
+
+                    for scale in presenceScales {
+                        let candidate = scale >= 0.999 ? detection.image : ImageProcessor.centerCrop(detection.image, scale: scale)
+                        guard let metrics = ImageProcessor.coinPresenceMetrics(
+                            for: candidate,
+                            calibration: presenceCalibration
+                        ) else {
+                            continue
+                        }
+                        lastMetrics = metrics
+                        if metrics.isPresent {
+                            isPresent = true
+                            break
+                        }
+                    }
+                    #if DEBUG
+                    if !isPresent, let metrics = lastMetrics {
+                        print(String(format: "PhotoPresence: pos=%d energy=%.3f ring=%.3f", detection.position, metrics.energyMean, metrics.ringRatio))
+                    }
+                    #endif
+                    return isPresent
+                }
                 debugLog("detected coins count=\(foundCoins.count)")
                 await MainActor.run {
-                    detectedCoins = foundCoins
+                    detectedCoins = validCoins
                 }
                 #if DEBUG
                 if debugSaveImages {
@@ -538,9 +566,9 @@ struct CameraView: View {
                 }
                 #endif
 
-                guard foundCoins.count == 6 else {
+                guard validCoins.count == 6 else {
                     await MainActor.run {
-                        errorMessage = "未检测到6枚铜钱，请调整摆放或光线"
+                        errorMessage = "未检测到6枚铜钱，请对齐竖线或调整光线"
                         showingAlert = true
                         processing = false
                         processingStage = nil
@@ -549,10 +577,28 @@ struct CameraView: View {
                 }
 
                 await MainActor.run {
+                    processingStage = "匹配模板…"
+                }
+                let matchResults = await matchDetectedCoins(for: validCoins)
+
+                await MainActor.run {
+                    suggestedResults = matchResults
+                    debugMatchResults = matchResults
                     processing = false
                     processingStage = nil
-                    if showConfirm {
-                        showingConfirm = true
+                }
+
+                await MainActor.run {
+                    if isResultReady(matchResults) {
+                        if showConfirmAfterMatch {
+                            detectedCoins = validCoins
+                            showingConfirm = true
+                        } else {
+                            presentResults(matchResults, source: "photo")
+                        }
+                    } else {
+                        errorMessage = "识别不稳定，请调整光线或重新拍摄"
+                        showingAlert = true
                     }
                 }
 
@@ -567,7 +613,11 @@ struct CameraView: View {
         }
     }
 
-    private func handleConfirm(results: [CoinResult]) {
+    private func presentResults(_ results: [CoinResult], source: String) {
+        guard !autoPresenting else { return }
+        autoPresenting = true
+        defer { autoPresenting = false }
+
         guard let profile = dataStorage.profiles.first else {
             errorMessage = "请先设置铜钱模板"
             showingAlert = true
@@ -575,7 +625,7 @@ struct CameraView: View {
         }
 
         let _ = dataStorage.createSession(
-            source: "camera",
+            source: source,
             profileId: profile.id,
             results: results
         )
@@ -583,8 +633,77 @@ struct CameraView: View {
         capturedImage = nil
         detectedCoins = []
         debugMatchResults = []
-        pendingShowResult = true
+        suggestedResults = []
+        showingResult = true
+    }
+
+    private func handleConfirm(results: [CoinResult]) {
         showingConfirm = false
+        presentResults(results, source: capturedImage == nil ? "camera" : "photo")
+    }
+
+    private func isResultReady(_ results: [CoinResult]) -> Bool {
+        guard results.count == 6 else { return false }
+        let positions = Set(results.map { $0.position })
+        guard positions.count == 6 else { return false }
+        return results.allSatisfy { result in
+            result.side == .front || result.side == .back
+        }
+    }
+
+    private func matchDetectedCoins(for detections: [CoinDetector.DetectedCoin]) async -> [CoinResult] {
+        let profile: CoinProfile? = await MainActor.run { dataStorage.profiles.first }
+        guard let profile = profile else { return [] }
+        guard let frontData = TemplateManager.deserializeTemplateData(profile.frontTemplates),
+              let backData = TemplateManager.deserializeTemplateData(profile.backTemplates) else {
+            await MainActor.run {
+                errorMessage = "模板数据异常，请重新设置"
+                showingAlert = true
+            }
+            return []
+        }
+
+        let frontTemplates = frontData.getObservations()
+        let backTemplates = backData.getObservations()
+        let frontDescriptors = frontData.getDescriptors()
+        let backDescriptors = backData.getDescriptors()
+        if frontTemplates.isEmpty || backTemplates.isEmpty {
+            if frontDescriptors.isEmpty || backDescriptors.isEmpty {
+                await MainActor.run {
+                    errorMessage = "模板为空或版本过旧，请重新设置"
+                    showingAlert = true
+                }
+                return []
+            }
+        }
+        let calibration = ConfidenceCalculator.calibrate(
+            frontTemplates: frontTemplates,
+            backTemplates: backTemplates
+        )
+        let descriptorCalibration = FeatureMatchService.calibrateDescriptors(
+            frontDescriptors: frontDescriptors,
+            backDescriptors: backDescriptors
+        )
+
+        let roiCandidates: [(Int, [UIImage])] = detections.map { detection in
+            let zoomScales: [CGFloat] = [1.0, 0.82, 0.68]
+            var candidates = ImageProcessor.zoomedVariants(for: detection.image, scales: zoomScales)
+            if let masked = detection.maskedImage {
+                candidates.append(contentsOf: ImageProcessor.zoomedVariants(for: masked, scales: zoomScales))
+            }
+            return (detection.position, candidates)
+        }
+
+        var results = await FeatureMatchService.matchAllCoinCandidates(
+            roiCandidates: roiCandidates,
+            frontTemplates: frontTemplates,
+            backTemplates: backTemplates,
+            calibration: calibration,
+            frontDescriptors: frontDescriptors,
+            backDescriptors: backDescriptors,
+            descriptorCalibration: descriptorCalibration
+        )
+        return results
     }
 
     private func debugLog(_ message: String) {
@@ -636,6 +755,28 @@ struct CameraView: View {
         showingDebugShare = true
     }
     #endif
+
+    private func updateLiveDetectionState() {
+        let shouldEnable = capturedImage == nil && !showingResult && !showingConfirm
+        liveDetector.setEnabled(shouldEnable)
+    }
+
+    private func updatePreviewSize(_ size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        if previewSize != size {
+            previewSize = size
+            liveDetector.setPreviewSize(size)
+        }
+    }
+
+    private func scheduleAlignHintDismissal() {
+        showAlignHint = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            withAnimation(.easeOut(duration: 0.3)) {
+                showAlignHint = false
+            }
+        }
+    }
 }
 
 private struct DebugCoinOverlay: View {

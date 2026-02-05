@@ -8,6 +8,7 @@ enum YinYang: String, Codable {
 enum CoinSide: String, Codable {
     case front = "字面"
     case back = "图案面"
+    case uncertain = "不确定"
     case invalid = "无效"
 }
 

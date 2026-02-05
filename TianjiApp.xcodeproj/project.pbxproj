@@ -35,6 +35,9 @@
 		1000028 /* Views/CoinConfirmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000028 /* Views/CoinConfirmView.swift */; };
 		1000026 /* Utils/SlotLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000026 /* Utils/SlotLayout.swift */; };
 		1000027 /* Recognition/CoinDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000027 /* Recognition/CoinDetector.swift */; };
+		1000029 /* Recognition/LiveDetectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000029 /* Recognition/LiveDetectionController.swift */; };
+		1000030 /* Utils/CoinResultSmoother.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000030 /* Utils/CoinResultSmoother.swift */; };
+		1000031 /* Utils/CoinResultTransformer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000031 /* Utils/CoinResultTransformer.swift */; };
 		48FDD31E2F1E7CB800848679 /* HexagramImages in Resources */ = {isa = PBXBuildFile; fileRef = 737142052D26416AA504BBE8 /* HexagramImages */; };
 		6199290CA9484812991AA301 /* HexagramImages in Resources */ = {isa = PBXBuildFile; fileRef = 737142052D26416AA504BBE8 /* HexagramImages */; };
 /* End PBXBuildFile section */
@@ -78,6 +81,9 @@
 		2000028 /* Views/CoinConfirmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/CoinConfirmView.swift; sourceTree = "<group>"; };
 		2000026 /* Utils/SlotLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/SlotLayout.swift; sourceTree = "<group>"; };
 		2000027 /* Recognition/CoinDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recognition/CoinDetector.swift; sourceTree = "<group>"; };
+		2000029 /* Recognition/LiveDetectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recognition/LiveDetectionController.swift; sourceTree = "<group>"; };
+		2000030 /* Utils/CoinResultSmoother.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/CoinResultSmoother.swift; sourceTree = "<group>"; };
+		2000031 /* Utils/CoinResultTransformer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/CoinResultTransformer.swift; sourceTree = "<group>"; };
 		3000001 /* TianjiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TianjiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3000002 /* TianjiAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TianjiAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		737142052D26416AA504BBE8 /* HexagramImages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HexagramImages; sourceTree = "<group>"; };
@@ -135,9 +141,12 @@
 				2000019 /* Recognition/FeatureMatchService.swift */,
 				2000020 /* Recognition/CoinValidator.swift */,
 				2000027 /* Recognition/CoinDetector.swift */,
+				2000029 /* Recognition/LiveDetectionController.swift */,
 				2000021 /* Utils/ImageProcessor.swift */,
 				2000022 /* Utils/ConfidenceCalculator.swift */,
 				2000026 /* Utils/SlotLayout.swift */,
+				2000030 /* Utils/CoinResultSmoother.swift */,
+				2000031 /* Utils/CoinResultTransformer.swift */,
 				0000005 /* Resources */,
 			);
 			sourceTree = "<group>";
@@ -292,9 +301,12 @@
 				1000019 /* Recognition/FeatureMatchService.swift in Sources */,
 				1000020 /* Recognition/CoinValidator.swift in Sources */,
 				1000027 /* Recognition/CoinDetector.swift in Sources */,
+				1000029 /* Recognition/LiveDetectionController.swift in Sources */,
 				1000021 /* Utils/ImageProcessor.swift in Sources */,
 				1000022 /* Utils/ConfidenceCalculator.swift in Sources */,
 				1000026 /* Utils/SlotLayout.swift in Sources */,
+				1000030 /* Utils/CoinResultSmoother.swift in Sources */,
+				1000031 /* Utils/CoinResultTransformer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

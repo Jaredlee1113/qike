@@ -4,7 +4,11 @@ import UIKit
 class CameraManager: NSObject, ObservableObject {
     private let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
+    private let videoOutput = AVCaptureVideoDataOutput()
+    private let videoQueue = DispatchQueue(label: "camera.video.queue")
     private var photoCompletion: ((UIImage) -> Void)?
+
+    var onFrame: ((CVPixelBuffer, CMTime) -> Void)?
     
     @Published var isSessionRunning = false
     
@@ -18,7 +22,7 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     private func setupCamera() {
-        session.sessionPreset = .photo
+        session.sessionPreset = .high
         
         guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
               let input = try? AVCaptureDeviceInput(device: device) else {
@@ -32,6 +36,25 @@ class CameraManager: NSObject, ObservableObject {
         
         if session.canAddOutput(photoOutput) {
             session.addOutput(photoOutput)
+        }
+
+        videoOutput.alwaysDiscardsLateVideoFrames = true
+        videoOutput.videoSettings = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+        ]
+
+        if session.canAddOutput(videoOutput) {
+            session.addOutput(videoOutput)
+            videoOutput.setSampleBufferDelegate(self, queue: videoQueue)
+        }
+
+        if let connection = videoOutput.connection(with: .video) {
+            if connection.isVideoOrientationSupported {
+                connection.videoOrientation = .portrait
+            }
+            if connection.isVideoMirroringSupported {
+                connection.isVideoMirrored = false
+            }
         }
     }
     
@@ -102,5 +125,18 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.photoCompletion?(image)
         }
+    }
+}
+
+extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
+    func captureOutput(
+        _ output: AVCaptureOutput,
+        didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        guard output === videoOutput,
+              let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+        onFrame?(pixelBuffer, timestamp)
     }
 }

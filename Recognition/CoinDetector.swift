@@ -24,15 +24,18 @@ class CoinDetector {
         var holeCandidatePool: [Candidate] = []
 
         let firstContours = await detectContours(in: baseCGImage, detectsDarkOnLight: true, contrast: 1.0)
+        debugLog("firstContours: \(firstContours.count)")
         holeCandidatePool.append(contentsOf: holeDerivedCandidates(from: firstContours, imageSize: imageSize, allowStandaloneHoles: false))
 
         if holeCandidatePool.count < 6 {
             let secondContours = await detectContours(in: baseCGImage, detectsDarkOnLight: false, contrast: 1.0)
+            debugLog("secondContours: \(secondContours.count)")
             holeCandidatePool.append(contentsOf: holeDerivedCandidates(from: secondContours, imageSize: imageSize, allowStandaloneHoles: false))
         }
 
         if holeCandidatePool.count < 6, let enhanced = enhanceContrast(for: baseCGImage) {
             let enhancedContours = await detectContours(in: enhanced, detectsDarkOnLight: true, contrast: 1.3)
+            debugLog("enhancedContours: \(enhancedContours.count)")
             holeCandidatePool.append(contentsOf: holeDerivedCandidates(from: enhancedContours, imageSize: imageSize, allowStandaloneHoles: false))
         }
 
@@ -40,15 +43,34 @@ class CoinDetector {
             holeCandidatePool.append(contentsOf: holeDerivedCandidates(from: firstContours, imageSize: imageSize, allowStandaloneHoles: true))
         }
 
-        let holeCandidates = dedupeCandidates(holeCandidatePool)
-        debugLog("hole candidates: \(holeCandidates.count)")
+        var outerCandidatePool: [Candidate] = []
+        if holeCandidatePool.count < 6 {
+            outerCandidatePool.append(contentsOf: candidates(
+                from: firstContours,
+                imageSize: imageSize,
+                requireHole: false,
+                minimumAreaRatio: 0.002
+            ))
+        }
 
-        guard holeCandidates.count >= 6 else {
-            debugLog("not enough hole candidates: \(holeCandidates.count)")
+        let holeCandidates = dedupeCandidates(holeCandidatePool)
+        let outerCandidates = dedupeCandidates(outerCandidatePool)
+        debugLog("hole candidates: \(holeCandidates.count)")
+        debugLog("outer candidates: \(outerCandidates.count)")
+
+        let allCandidates = dedupeCandidates(holeCandidates + outerCandidates)
+        let filteredCandidates = filterCandidatesForColumn(allCandidates)
+        debugLog("total candidates: \(allCandidates.count)")
+        if filteredCandidates.count != allCandidates.count {
+            debugLog("filtered candidates: \(filteredCandidates.count)")
+        }
+
+        guard filteredCandidates.count >= 6 else {
+            debugLog("not enough candidates: \(filteredCandidates.count)")
             return []
         }
 
-        let selected = selectBestSixCandidates(from: holeCandidates)
+        let selected = selectBestSixCandidates(from: filteredCandidates)
         guard selected.count >= 6 else {
             debugLog("not enough selected candidates: \(selected.count)")
             return []
@@ -57,7 +79,7 @@ class CoinDetector {
         let paddedCandidates = selected.map { candidate -> (Candidate, CGRect) in
             (candidate, padRect(candidate.rect, in: imageSize))
         }
-        let sortedCandidates = paddedCandidates.sorted { $0.1.midY < $1.1.midY }
+        let sortedCandidates = sortCandidatesAlongLine(paddedCandidates)
 
         var results: [DetectedCoin] = []
         for (index, item) in sortedCandidates.enumerated() {
@@ -83,6 +105,100 @@ class CoinDetector {
 
         debugLog("coins detected: \(results.count)")
         return results
+    }
+
+    static func detectSingleCoin(from image: UIImage) async -> DetectedCoin? {
+        guard let baseCGImage = image.cgImage else { return nil }
+        let imageSize = CGSize(width: baseCGImage.width, height: baseCGImage.height)
+
+        var candidatePool: [Candidate] = []
+        var outerPool: [Candidate] = []
+
+        let firstContours = await detectContours(in: baseCGImage, detectsDarkOnLight: true, contrast: 1.0)
+        candidatePool.append(contentsOf: holeDerivedCandidates(from: firstContours, imageSize: imageSize, allowStandaloneHoles: true))
+        outerPool.append(contentsOf: candidates(from: firstContours, imageSize: imageSize, requireHole: false, minimumAreaRatio: 0.002))
+
+        if candidatePool.isEmpty, outerPool.isEmpty {
+            let secondContours = await detectContours(in: baseCGImage, detectsDarkOnLight: false, contrast: 1.0)
+            candidatePool.append(contentsOf: holeDerivedCandidates(from: secondContours, imageSize: imageSize, allowStandaloneHoles: true))
+            outerPool.append(contentsOf: candidates(from: secondContours, imageSize: imageSize, requireHole: false, minimumAreaRatio: 0.002))
+        }
+
+        if candidatePool.isEmpty, outerPool.isEmpty, let enhanced = enhanceContrast(for: baseCGImage) {
+            let enhancedContours = await detectContours(in: enhanced, detectsDarkOnLight: true, contrast: 1.3)
+            candidatePool.append(contentsOf: holeDerivedCandidates(from: enhancedContours, imageSize: imageSize, allowStandaloneHoles: true))
+            outerPool.append(contentsOf: candidates(from: enhancedContours, imageSize: imageSize, requireHole: false, minimumAreaRatio: 0.002))
+        }
+
+        let candidates = dedupeCandidates(candidatePool + outerPool)
+        guard let selected = candidates.max(by: { $0.area < $1.area }) else { return nil }
+
+        let rect = padRect(selected.rect, in: imageSize)
+        guard let rawCrop = baseCGImage.cropping(to: rect) else { return nil }
+        let masked = maskCoin(in: baseCGImage, rect: rect, normalizedPath: selected.normalizedPath, imageSize: imageSize)
+        let normalizedRect = CGRect(
+            x: rect.origin.x / imageSize.width,
+            y: rect.origin.y / imageSize.height,
+            width: rect.size.width / imageSize.width,
+            height: rect.size.height / imageSize.height
+        )
+
+        return DetectedCoin(
+            image: UIImage(cgImage: rawCrop),
+            maskedImage: masked.map { UIImage(cgImage: $0) },
+            position: 1,
+            rect: rect,
+            normalizedRect: normalizedRect
+        )
+    }
+
+    static func detectSingleCoinFast(from image: UIImage) async -> DetectedCoin? {
+        guard let baseCGImage = image.cgImage else { return nil }
+        let imageSize = CGSize(width: baseCGImage.width, height: baseCGImage.height)
+
+        var candidatePool: [Candidate] = []
+        var outerPool: [Candidate] = []
+
+        let firstContours = await detectContours(
+            in: baseCGImage,
+            detectsDarkOnLight: true,
+            contrast: 1.0,
+            maximumImageDimension: 512
+        )
+        candidatePool.append(contentsOf: holeDerivedCandidates(from: firstContours, imageSize: imageSize, allowStandaloneHoles: true))
+        outerPool.append(contentsOf: candidates(from: firstContours, imageSize: imageSize, requireHole: false, minimumAreaRatio: 0.003))
+
+        if candidatePool.isEmpty, outerPool.isEmpty {
+            let secondContours = await detectContours(
+                in: baseCGImage,
+                detectsDarkOnLight: false,
+                contrast: 1.0,
+                maximumImageDimension: 512
+            )
+            candidatePool.append(contentsOf: holeDerivedCandidates(from: secondContours, imageSize: imageSize, allowStandaloneHoles: true))
+            outerPool.append(contentsOf: candidates(from: secondContours, imageSize: imageSize, requireHole: false, minimumAreaRatio: 0.003))
+        }
+
+        let candidates = dedupeCandidates(candidatePool + outerPool)
+        guard let selected = candidates.max(by: { $0.area < $1.area }) else { return nil }
+
+        let rect = padRect(selected.rect, in: imageSize)
+        guard let rawCrop = baseCGImage.cropping(to: rect) else { return nil }
+        let masked = maskCoin(in: baseCGImage, rect: rect, normalizedPath: selected.normalizedPath, imageSize: imageSize)
+        let normalizedRect = CGRect(
+            x: rect.origin.x / imageSize.width,
+            y: rect.origin.y / imageSize.height,
+            width: rect.size.width / imageSize.width,
+            height: rect.size.height / imageSize.height
+        )
+
+        return DetectedCoin(
+            image: UIImage(cgImage: rawCrop),
+            maskedImage: masked.map { UIImage(cgImage: $0) },
+            position: 1,
+            rect: rect,
+            normalizedRect: normalizedRect
+        )
     }
 
     private static func candidates(
@@ -263,7 +379,7 @@ class CoinDetector {
     private static func isValidHole(_ holeRect: CGRect, outerRect: CGRect) -> Bool {
         guard outerRect.width > 0, outerRect.height > 0 else { return false }
         let holeAreaRatio = (holeRect.width * holeRect.height) / (outerRect.width * outerRect.height)
-        guard holeAreaRatio > 0.04, holeAreaRatio < 0.35 else { return false }
+        guard holeAreaRatio > 0.02, holeAreaRatio < 0.35 else { return false }
 
         let holeAspect = holeRect.width / max(holeRect.height, 1e-6)
         guard holeAspect > 0.5, holeAspect < 1.5 else { return false }
@@ -408,6 +524,48 @@ class CoinDetector {
         return (slope, intercept)
     }
 
+    private static func sortCandidatesAlongLine(
+        _ items: [(Candidate, CGRect)]
+    ) -> [(Candidate, CGRect)] {
+        guard items.count > 1 else { return items }
+
+        let points = items.map { CGPoint(x: $0.1.midX, y: $0.1.midY) }
+        let (slope, _) = fitLineXoverY(points)
+        let dx = slope.isFinite ? slope : 0
+        let dy: CGFloat = 1
+        let norm = max(hypot(dx, dy), 1e-6)
+        let nx = dx / norm
+        let ny = dy / norm
+
+        return items.sorted {
+            let lhs = $0.1.midX * nx + $0.1.midY * ny
+            let rhs = $1.1.midX * nx + $1.1.midY * ny
+            return lhs < rhs
+        }
+    }
+
+    private static func filterCandidatesForColumn(_ candidates: [Candidate]) -> [Candidate] {
+        guard candidates.count > 6 else { return candidates }
+
+        let sizes = candidates.map { min($0.rect.width, $0.rect.height) }
+        let medianSize = median(sizes)
+        guard medianSize > 0 else { return candidates }
+
+        let xs = candidates.map { $0.rect.midX }
+        let medianX = median(xs)
+        let sizeLower = medianSize * 0.7
+        let sizeUpper = medianSize * 1.4
+        let xTolerance = medianSize * 0.6
+
+        let filtered = candidates.filter { candidate in
+            let size = min(candidate.rect.width, candidate.rect.height)
+            guard size >= sizeLower && size <= sizeUpper else { return false }
+            return abs(candidate.rect.midX - medianX) <= xTolerance
+        }
+
+        return filtered.count >= 6 ? filtered : candidates
+    }
+
     private static func median(_ values: [CGFloat]) -> CGFloat {
         guard !values.isEmpty else { return 0 }
         let sorted = values.sorted()
@@ -465,7 +623,8 @@ class CoinDetector {
     private static func detectContours(
         in cgImage: CGImage,
         detectsDarkOnLight: Bool,
-        contrast: Float
+        contrast: Float,
+        maximumImageDimension: Int = 960
     ) async -> [VNContour] {
         await withCheckedContinuation { continuation in
             let lock = NSLock()
@@ -509,7 +668,7 @@ class CoinDetector {
 
             request.detectsDarkOnLight = detectsDarkOnLight
             request.contrastAdjustment = contrast
-            request.maximumImageDimension = 640
+            request.maximumImageDimension = maximumImageDimension
 
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             do {

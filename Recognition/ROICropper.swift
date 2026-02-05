@@ -78,4 +78,83 @@ class ROICropper {
         return CGRect(x: originX, y: originY, width: originWidth, height: originHeight)
             .intersection(imageRect)
     }
+
+    static func slotDetections(
+        for image: UIImage,
+        insetRatio: CGFloat = 0.08
+    ) -> [CoinDetector.DetectedCoin] {
+        guard let cgImage = image.cgImage else { return [] }
+        let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+        let bounds = CGRect(origin: .zero, size: imageSize)
+        let slots = SlotLayout.slotsNormalized(in: imageSize)
+
+        return slots.compactMap { slot in
+            let inset = min(slot.rect.width, slot.rect.height) * insetRatio
+            let rect = slot.rect.insetBy(dx: inset, dy: inset).integral.intersection(bounds)
+            guard rect.width > 0, rect.height > 0,
+                  let cropped = cgImage.cropping(to: rect) else {
+                return nil
+            }
+
+            let uiImage = UIImage(cgImage: cropped)
+            let masked = ImageProcessor.applyCircularMask(uiImage)
+            let normalizedRect = CGRect(
+                x: rect.origin.x / imageSize.width,
+                y: rect.origin.y / imageSize.height,
+                width: rect.size.width / imageSize.width,
+                height: rect.size.height / imageSize.height
+            )
+
+            return CoinDetector.DetectedCoin(
+                image: uiImage,
+                maskedImage: masked,
+                position: slot.position,
+                rect: rect,
+                normalizedRect: normalizedRect
+            )
+        }
+    }
+
+    static func slotDetections(
+        for image: UIImage,
+        in viewSize: CGSize,
+        insetRatio: CGFloat = 0.08
+    ) -> [CoinDetector.DetectedCoin] {
+        guard viewSize.width > 0, viewSize.height > 0 else {
+            return slotDetections(for: image, insetRatio: insetRatio)
+        }
+        guard let cgImage = image.cgImage else { return [] }
+        let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+        let bounds = CGRect(origin: .zero, size: imageSize)
+        let slots = SlotLayout.slotsNormalized(in: viewSize)
+
+        return slots.compactMap { slot in
+            let inset = min(slot.rect.width, slot.rect.height) * insetRatio
+            let viewRect = slot.rect.insetBy(dx: inset, dy: inset).integral
+            let rect = mapViewRectToImageRect(viewRect, viewSize: viewSize, imageSize: imageSize)
+                .integral
+                .intersection(bounds)
+            guard rect.width > 0, rect.height > 0,
+                  let cropped = cgImage.cropping(to: rect) else {
+                return nil
+            }
+
+            let uiImage = UIImage(cgImage: cropped)
+            let masked = ImageProcessor.applyCircularMask(uiImage)
+            let normalizedRect = CGRect(
+                x: rect.origin.x / imageSize.width,
+                y: rect.origin.y / imageSize.height,
+                width: rect.size.width / imageSize.width,
+                height: rect.size.height / imageSize.height
+            )
+
+            return CoinDetector.DetectedCoin(
+                image: uiImage,
+                maskedImage: masked,
+                position: slot.position,
+                rect: rect,
+                normalizedRect: normalizedRect
+            )
+        }
+    }
 }

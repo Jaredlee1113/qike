@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CoinConfirmView: View {
     let detections: [CoinDetector.DetectedCoin]
+    let suggestedResults: [CoinResult]
     let isProcessing: Bool
     let onConfirm: ([CoinResult]) -> Void
     let onRetake: () -> Void
@@ -42,7 +43,7 @@ struct CoinConfirmView: View {
                                         Text("第\(detection.position)爻")
                                             .font(.subheadline)
                                             .fontWeight(.semibold)
-                                        Text("请确认阴阳")
+                                        Text(suggestionText(for: detection.position))
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
                                     }
@@ -120,7 +121,18 @@ struct CoinConfirmView: View {
     private func resetSelections() {
         var next: [Int: YinYang] = [:]
         for detection in detections {
-            next[detection.position] = .yang
+            if let suggestion = suggestedResults.first(where: { $0.position == detection.position }) {
+                switch suggestion.side {
+                case .front:
+                    next[detection.position] = .yin
+                case .back:
+                    next[detection.position] = .yang
+                case .uncertain, .invalid:
+                    next[detection.position] = .yang
+                }
+            } else {
+                next[detection.position] = .yang
+            }
         }
         selections = next
     }
@@ -145,6 +157,20 @@ struct CoinConfirmView: View {
         }
         return results.sorted { $0.position < $1.position }
     }
+
+    private func suggestionText(for position: Int) -> String {
+        guard let suggestion = suggestedResults.first(where: { $0.position == position }) else {
+            return "请确认阴阳"
+        }
+
+        if suggestion.side == .uncertain || suggestion.side == .invalid {
+            return "建议：不确定，请调整光线或重录模板"
+        }
+
+        let label = suggestion.side == .front ? "阴" : "阳"
+        let confidenceText = String(format: "%.2f", suggestion.confidence)
+        return "建议：\(label) 置信度 \(confidenceText)"
+    }
 }
 
 #Preview {
@@ -158,6 +184,7 @@ struct CoinConfirmView: View {
     )
     return CoinConfirmView(
         detections: [sample, sample, sample, sample, sample, sample],
+        suggestedResults: [],
         isProcessing: false,
         onConfirm: { _ in },
         onRetake: {},

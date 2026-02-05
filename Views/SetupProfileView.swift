@@ -13,6 +13,7 @@ struct SetupProfileView: View {
     @State private var pickerType: PickerType = .front
     @State private var errorMessage: String?
     @State private var showingAlert = false
+    @State private var isSaving = false
     
     enum PickerType {
         case front
@@ -99,7 +100,7 @@ struct SetupProfileView: View {
             }
             
             Section("提示") {
-                Text("请提供3-5张铜钱正反面的清晰照片作为模板。模板照片建议在不同角度和光照下拍摄，以提高识别准确度。")
+                Text("请提供3-5张铜钱正反面的清晰照片作为模板。模板照片建议在不同角度和光照下拍摄，以提高识别准确度。若出现“不确定”，请调整光线或重新录入模板。")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -111,13 +112,14 @@ struct SetupProfileView: View {
                 Button("取消") {
                     dismiss()
                 }
+                .disabled(isSaving)
             }
             
             ToolbarItem(placement: .confirmationAction) {
                 Button("保存") {
                     saveProfile()
                 }
-                .disabled(profileName.isEmpty || frontTemplateImages.isEmpty || backTemplateImages.isEmpty)
+                .disabled(isSaving || frontTemplateImages.isEmpty || backTemplateImages.isEmpty)
             }
         }
         .sheet(isPresented: $showingImagePicker) {
@@ -130,40 +132,91 @@ struct SetupProfileView: View {
                 Text(errorMessage)
             }
         }
-    }
-    
-    private func saveProfile() {
-        Task {
-            do {
-                let frontTemplateData = await TemplateManager.createTemplates(from: frontTemplateImages)
-                let backTemplateData = await TemplateManager.createTemplates(from: backTemplateImages)
-                
-                guard let frontData = TemplateManager.serializeTemplateData(frontTemplateData),
-                      let backData = TemplateManager.serializeTemplateData(backTemplateData) else {
-                    await MainActor.run {
-                        errorMessage = "模板生成失败"
-                        showingAlert = true
-                    }
-                    return
-                }
-
-                await MainActor.run {
-                    dataStorage.createProfile(
-                        name: profileName,
-                        frontTemplates: frontData,
-                        backTemplates: backData
-                    )
-                    dismiss()
-                }
-                
-            } catch {
-                await MainActor.run {
-                    errorMessage = "保存失败: \(error.localizedDescription)"
-                    showingAlert = true
+        .overlay {
+            if isSaving {
+                ZStack {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                    ProgressView("生成模板中…")
+                        .padding()
+                        .background(Color.black.opacity(0.75))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                 }
             }
         }
     }
+    
+    private func saveProfile() {
+        guard !isSaving else { return }
+        guard !frontTemplateImages.isEmpty, !backTemplateImages.isEmpty else {
+            errorMessage = "请先添加正反面模板"
+            showingAlert = true
+            return
+        }
+        isSaving = true
+
+        let name = normalizedProfileName()
+        profileName = name
+        let frontImages = frontTemplateImages
+        let backImages = backTemplateImages
+
+        Task.detached(priority: .userInitiated) {
+            let frontTemplateData = await TemplateManager.createTemplates(from: frontImages)
+            let backTemplateData = await TemplateManager.createTemplates(from: backImages)
+
+            guard !frontTemplateData.featurePrints.isEmpty,
+                  !backTemplateData.featurePrints.isEmpty else {
+                await MainActor.run {
+                    errorMessage = "模板生成失败，请确保图片中有完整清晰的单枚铜钱"
+                    showingAlert = true
+                    isSaving = false
+                }
+                return
+            }
+
+            guard let frontData = TemplateManager.serializeTemplateData(frontTemplateData),
+                  let backData = TemplateManager.serializeTemplateData(backTemplateData) else {
+                await MainActor.run {
+                    errorMessage = "模板生成失败"
+                    showingAlert = true
+                    isSaving = false
+                }
+                return
+            }
+
+            await MainActor.run {
+                dataStorage.createProfile(
+                    name: name,
+                    frontTemplates: frontData,
+                    backTemplates: backData
+                )
+                isSaving = false
+                dismiss()
+            }
+        }
+    }
+
+    private func normalizedProfileName() -> String {
+        let trimmed = profileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        return defaultProfileName()
+    }
+
+    private func defaultProfileName() -> String {
+        DateFormatter.templateNameFormatter.string(from: Date())
+    }
+}
+
+private extension DateFormatter {
+    static let templateNameFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd HHmm"
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter
+    }()
 }
 
 struct ImagePicker: UIViewControllerRepresentable {

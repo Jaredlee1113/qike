@@ -338,17 +338,32 @@ struct CameraView: View {
     }
 
     private var bottomControls: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 12) {
-                secondaryButton(title: "相册选择") {
+        VStack(spacing: 12) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 108), spacing: 10)],
+                spacing: 10
+            ) {
+                secondaryButton(
+                    title: "相册选择",
+                    symbolName: "photo.on.rectangle",
+                    accessibilityHint: "从相册导入单张照片进行识别"
+                ) {
                     showingPhotoPicker = true
                 }
 
-                secondaryButton(title: "手动输入") {
+                secondaryButton(
+                    title: "手动输入",
+                    symbolName: "pencil.and.list.clipboard",
+                    accessibilityHint: "手动选择六爻阴阳"
+                ) {
                     showingManualInput = true
                 }
 
-                secondaryButton(title: "模板中心") {
+                secondaryButton(
+                    title: "模板中心",
+                    symbolName: "square.stack.3d.up",
+                    accessibilityHint: "管理当前识别模板"
+                ) {
                     showingTemplateCenter = true
                 }
             }
@@ -357,17 +372,23 @@ struct CameraView: View {
         .padding(.bottom, 16)
     }
 
-    private func secondaryButton(title: String, action: @escaping () -> Void) -> some View {
+    private func secondaryButton(
+        title: String,
+        symbolName: String,
+        accessibilityHint: String,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(.footnote)
-                .fontWeight(.semibold)
+            Label(title, systemImage: symbolName)
+                .font(.footnote.weight(.semibold))
                 .foregroundColor(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .padding(.horizontal, 10)
                 .background(Color.black.opacity(0.6))
-                .cornerRadius(16)
+                .cornerRadius(14)
         }
+        .accessibilityLabel(title)
+        .accessibilityHint(accessibilityHint)
     }
 
     private func previewLayer(image: UIImage) -> some View {

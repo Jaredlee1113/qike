@@ -70,8 +70,20 @@ class DataStorageManager: ObservableObject {
         return profiles.first(where: { $0.id == activeProfileId })
     }
 
-    func createProfile(name: String, frontTemplates: Data, backTemplates: Data) -> CoinProfile {
-        let profile = CoinProfile(name: name, frontTemplates: frontTemplates, backTemplates: backTemplates)
+    func createProfile(
+        name: String,
+        frontTemplates: Data,
+        backTemplates: Data,
+        frontPreviewImages: [Data] = [],
+        backPreviewImages: [Data] = []
+    ) -> CoinProfile {
+        let profile = CoinProfile(
+            name: name,
+            frontTemplates: frontTemplates,
+            backTemplates: backTemplates,
+            frontPreviewImages: frontPreviewImages,
+            backPreviewImages: backPreviewImages
+        )
         profiles.append(profile)
         saveProfiles()
         setActiveProfile(profile.id)

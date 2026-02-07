@@ -88,7 +88,7 @@
 		2000032 /* Views/TemplateCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TemplateCenterView.swift; sourceTree = "<group>"; };
 		3000001 /* TianjiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TianjiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3000002 /* TianjiAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TianjiAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		737142052D26416AA504BBE8 /* HexagramImages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HexagramImages; sourceTree = "<group>"; };
+		737142052D26416AA504BBE8 /* HexagramImages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/HexagramImages; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */

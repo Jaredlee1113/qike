@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
+import UIKit
 
 struct SetupProfileView: View {
     @EnvironmentObject var dataStorage: DataStorageManager
@@ -16,10 +17,27 @@ struct SetupProfileView: View {
     @State private var showingAlert = false
     @State private var shouldDismissAfterAlert = false
     @State private var isSaving = false
+
+    private let minimumTemplateCount = 3
+    private let maximumTemplateCount = 5
     
     enum PickerType {
         case front
         case back
+    }
+
+    private var canSave: Bool {
+        frontTemplateImages.count >= minimumTemplateCount &&
+            backTemplateImages.count >= minimumTemplateCount &&
+            !isSaving
+    }
+
+    private var frontRemainingSlots: Int {
+        max(maximumTemplateCount - frontTemplateImages.count, 0)
+    }
+
+    private var backRemainingSlots: Int {
+        max(maximumTemplateCount - backTemplateImages.count, 0)
     }
     
     var body: some View {
@@ -31,13 +49,16 @@ struct SetupProfileView: View {
             
             Section("字面模板 (阴面)") {
                 HStack {
-                    Text("模板数量: \(frontTemplateImages.count)")
+                    Text("模板数量: \(frontTemplateImages.count)/\(maximumTemplateCount)")
+                    Text("至少 \(minimumTemplateCount) 张")
+                        .font(.caption2)
+                        .foregroundColor(frontTemplateImages.count >= minimumTemplateCount ? .green : .orange)
                     Spacer()
                     Button("添加") {
                         pickerType = .front
                         showingImagePicker = true
                     }
-                    .disabled(frontTemplateImages.count >= 5)
+                    .disabled(frontTemplateImages.count >= maximumTemplateCount)
                 }
                 
                 if !frontTemplateImages.isEmpty {
@@ -57,6 +78,7 @@ struct SetupProfileView: View {
                                         Image(systemName: "xmark.circle.fill")
                                             .foregroundColor(.red)
                                     }
+                                    .accessibilityLabel("删除阴面模板\(index + 1)")
                                 }
                                 .padding(.horizontal, 4)
                             }
@@ -67,13 +89,16 @@ struct SetupProfileView: View {
             
             Section("图案面模板 (阳面)") {
                 HStack {
-                    Text("模板数量: \(backTemplateImages.count)")
+                    Text("模板数量: \(backTemplateImages.count)/\(maximumTemplateCount)")
+                    Text("至少 \(minimumTemplateCount) 张")
+                        .font(.caption2)
+                        .foregroundColor(backTemplateImages.count >= minimumTemplateCount ? .green : .orange)
                     Spacer()
                     Button("添加") {
                         pickerType = .back
                         showingImagePicker = true
                     }
-                    .disabled(backTemplateImages.count >= 5)
+                    .disabled(backTemplateImages.count >= maximumTemplateCount)
                 }
                 
                 if !backTemplateImages.isEmpty {
@@ -93,6 +118,7 @@ struct SetupProfileView: View {
                                         Image(systemName: "xmark.circle.fill")
                                             .foregroundColor(.red)
                                     }
+                                    .accessibilityLabel("删除阳面模板\(index + 1)")
                                 }
                                 .padding(.horizontal, 4)
                             }
@@ -102,7 +128,7 @@ struct SetupProfileView: View {
             }
             
             Section("提示") {
-                Text("请提供3-5张铜钱正反面的清晰照片作为模板。模板照片建议在不同角度和光照下拍摄，以提高识别准确度。若出现“不确定”，请调整光线或重新录入模板。")
+                Text("请为阴面和阳面各提供3-5张清晰照片。可一次多选，建议包含不同角度和光照条件，以提高识别准确度。若出现“不确定”，请调整光线或重新录入模板。")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -121,11 +147,14 @@ struct SetupProfileView: View {
                 Button("保存") {
                     saveProfile()
                 }
-                .disabled(isSaving || frontTemplateImages.isEmpty || backTemplateImages.isEmpty)
+                .disabled(!canSave)
             }
         }
         .sheet(isPresented: $showingImagePicker) {
-            ImagePicker(selectedImages: pickerType == .front ? $frontTemplateImages : $backTemplateImages)
+            ImagePicker(
+                selectedImages: pickerType == .front ? $frontTemplateImages : $backTemplateImages,
+                maxSelectionCount: pickerType == .front ? frontRemainingSlots : backRemainingSlots
+            )
         }
         .alert(alertTitle, isPresented: $showingAlert) {
             Button("确定", role: .cancel) {
@@ -155,10 +184,11 @@ struct SetupProfileView: View {
     
     private func saveProfile() {
         guard !isSaving else { return }
-        guard !frontTemplateImages.isEmpty, !backTemplateImages.isEmpty else {
+        guard frontTemplateImages.count >= minimumTemplateCount,
+              backTemplateImages.count >= minimumTemplateCount else {
             alertTitle = "提示"
             shouldDismissAfterAlert = false
-            errorMessage = "请先添加正反面模板"
+            errorMessage = "请至少添加\(minimumTemplateCount)张阴面模板和\(minimumTemplateCount)张阳面模板"
             showingAlert = true
             return
         }
@@ -168,6 +198,8 @@ struct SetupProfileView: View {
         profileName = name
         let frontImages = frontTemplateImages
         let backImages = backTemplateImages
+        let frontPreviewImages = frontImages.compactMap(encodePreviewImageData)
+        let backPreviewImages = backImages.compactMap(encodePreviewImageData)
 
         Task.detached(priority: .userInitiated) {
             let frontTemplateData = await TemplateManager.createTemplates(from: frontImages)
@@ -199,10 +231,12 @@ struct SetupProfileView: View {
             }
 
             await MainActor.run {
-                dataStorage.createProfile(
+                let _ = dataStorage.createProfile(
                     name: name,
                     frontTemplates: frontData,
-                    backTemplates: backData
+                    backTemplates: backData,
+                    frontPreviewImages: frontPreviewImages,
+                    backPreviewImages: backPreviewImages
                 )
                 isSaving = false
                 alertTitle = "保存成功"
@@ -224,6 +258,28 @@ struct SetupProfileView: View {
     private func defaultProfileName() -> String {
         DateFormatter.templateNameFormatter.string(from: Date())
     }
+
+    private func encodePreviewImageData(_ image: UIImage) -> Data? {
+        let targetMaxDimension: CGFloat = 1024
+        let resized = resizeIfNeeded(image, maxDimension: targetMaxDimension)
+        return resized.jpegData(compressionQuality: 0.72)
+    }
+
+    private func resizeIfNeeded(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let size = image.size
+        let longestEdge = max(size.width, size.height)
+        guard longestEdge > maxDimension, longestEdge > 0 else { return image }
+
+        let ratio = maxDimension / longestEdge
+        let targetSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+
+        let rendererFormat = UIGraphicsImageRendererFormat.default()
+        rendererFormat.scale = 1
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: rendererFormat)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
 }
 
 private extension DateFormatter {
@@ -237,11 +293,11 @@ private extension DateFormatter {
 
 struct ImagePicker: UIViewControllerRepresentable {
     @Binding var selectedImages: [UIImage]
-    @Environment(\.dismiss) private var dismiss
+    let maxSelectionCount: Int
     
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var configuration = PHPickerConfiguration()
-        configuration.selectionLimit = 1
+        configuration.selectionLimit = max(1, maxSelectionCount)
         configuration.filter = .images
         
         let picker = PHPickerViewController(configuration: configuration)
@@ -264,56 +320,58 @@ struct ImagePicker: UIViewControllerRepresentable {
         
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             picker.dismiss(animated: true)
-            
-            guard let result = results.first else { return }
-            
-            let itemProvider = result.itemProvider
-            if itemProvider.canLoadObject(ofClass: UIImage.self) {
-                itemProvider.loadObject(ofClass: UIImage.self) { [weak self] image, error in
-                    guard let self = self else { return }
-                    
-                    if let error = error {
-                        print("Error loading image: \(error.localizedDescription)")
-                        return
-                    }
-                    
-                    guard let image = image as? UIImage else {
-                        print("Loaded item is not a UIImage")
-                        return
-                    }
-                    
+
+            let cappedResults = Array(results.prefix(max(0, parent.maxSelectionCount)))
+            guard !cappedResults.isEmpty else { return }
+
+            for result in cappedResults {
+                loadImage(from: result.itemProvider) { [weak self] image in
+                    guard let self = self, let image = image else { return }
                     DispatchQueue.main.async {
                         self.parent.selectedImages.append(image)
-                        print("Successfully loaded image, total images: \(self.parent.selectedImages.count)")
                     }
                 }
-            } else if itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
-                itemProvider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { [weak self] (item, error) in
-                    guard let self = self else { return }
-                    
+            }
+        }
+
+        private func loadImage(from itemProvider: NSItemProvider, completion: @escaping (UIImage?) -> Void) {
+            if itemProvider.canLoadObject(ofClass: UIImage.self) {
+                itemProvider.loadObject(ofClass: UIImage.self) { image, error in
                     if let error = error {
                         print("Error loading image: \(error.localizedDescription)")
+                        completion(nil)
                         return
                     }
-                    
-                    if let data = item as? Data, let image = UIImage(data: data) {
-                        DispatchQueue.main.async {
-                            self.parent.selectedImages.append(image)
-                            print("Successfully loaded image, total images: \(self.parent.selectedImages.count)")
-                        }
-                    } else if let url = item as? URL {
-                        // Try to load from URL if data approach fails
-                        if let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-                            DispatchQueue.main.async {
-                                self.parent.selectedImages.append(image)
-                                print("Successfully loaded image from URL, total images: \(self.parent.selectedImages.count)")
-                            }
-                        }
-                    }
+                    completion(image as? UIImage)
                 }
-            } else {
-                print("Item provider doesn't conform to image type")
+                return
             }
+
+            if itemProvider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                itemProvider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, error in
+                    if let error = error {
+                        print("Error loading image: \(error.localizedDescription)")
+                        completion(nil)
+                        return
+                    }
+
+                    if let data = item as? Data, let image = UIImage(data: data) {
+                        completion(image)
+                        return
+                    }
+
+                    if let url = item as? URL, let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+                        completion(image)
+                        return
+                    }
+
+                    completion(nil)
+                }
+                return
+            }
+
+            print("Item provider doesn't conform to image type")
+            completion(nil)
         }
     }
 }

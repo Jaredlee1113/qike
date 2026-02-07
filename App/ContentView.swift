@@ -15,8 +15,8 @@ struct ContentView: View {
         NavigationStack {
             VStack(spacing: 16) {
                 HStack {
-                    NavigationLink(destination: SetupProfileView()) {
-                        Label("设置模板", systemImage: "person.circle")
+                    NavigationLink(destination: TemplateCenterView()) {
+                        Label("模板中心", systemImage: "person.3")
                     }
                     .buttonStyle(.bordered)
 
@@ -71,7 +71,11 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView()
-        .environmentObject(DataStorageManager.shared)
+#if DEBUG
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .environmentObject(DataStorageManager.shared)
+    }
 }
+#endif

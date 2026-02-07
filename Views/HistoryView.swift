@@ -2,11 +2,11 @@ import SwiftUI
 
 struct HistoryView: View {
     @EnvironmentObject var dataStorage: DataStorageManager
-    
+
     var sortedSessions: [DivinationSession] {
         dataStorage.getSortedSessions()
     }
-    
+
     var body: some View {
         List {
             if sortedSessions.isEmpty {
@@ -27,8 +27,12 @@ struct HistoryView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(formatDate(session.date))
                                     .font(.headline)
-                                Text(session.source == "camera" ? "相机拍摄" : "相册选择")
+                                Text(session.sourceType.displayName)
                                     .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                Text("模板：\(profileName(for: session))")
+                                    .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
 
@@ -51,7 +55,7 @@ struct HistoryView: View {
         }
         .navigationTitle("历史记录")
     }
-    
+
     private func deleteSessions(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
@@ -60,7 +64,12 @@ struct HistoryView: View {
             }
         }
     }
-    
+
+    private func profileName(for session: DivinationSession) -> String {
+        guard let profileId = session.profileId else { return "未关联模板" }
+        return dataStorage.profiles.first(where: { $0.id == profileId })?.name ?? "模板已删除"
+    }
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -71,8 +80,15 @@ struct HistoryView: View {
 }
 
 struct SessionDetailView: View {
+    @EnvironmentObject var dataStorage: DataStorageManager
     let session: DivinationSession
-    
+
+    private var yaos: [YinYang]? {
+        session.results?
+            .sorted { $0.position < $1.position }
+            .map(\.yinYang)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -83,87 +99,38 @@ struct SessionDetailView: View {
                         .font(.body)
                         .foregroundColor(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
-                
+
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("识别结果")
+                    Text("来源")
                         .font(.headline)
-                    
-                    if let results = session.results {
-                        ForEach(results.sorted { $0.position < $1.position }, id: \.position) { result in
-                            HStack {
-                                Text("第\(result.position)爻")
-                                    .frame(width: 60, alignment: .leading)
-                                
-                                Text(result.yinYang.rawValue)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(result.yinYang == .yang ? .blue : .red)
-                                
-                                Spacer()
-                                
-                                Text("\(Int(result.confidence * 100))%")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    }
+                    Text(session.sourceType.displayName)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+
+                    Text("模板")
+                        .font(.headline)
+                    Text(profileName(for: session))
+                        .font(.body)
+                        .foregroundColor(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(10)
-                
-                if let results = session.results, let hexagram = HexagramProvider.findHexagram(by: results.map { $0.yinYang }) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("卦象信息")
-                            .font(.headline)
-                        
-                        HStack {
-                            Text(hexagram.hexagramSymbol)
-                                .font(.system(size: 48))
-                                .frame(width: 60)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(hexagram.name)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                Text("占卜图解: \(hexagram.divinationDiagramName)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("爻词")
-                            .font(.headline)
-                        
-                        ForEach(0..<hexagram.yaoci.count, id: \.self) { index in
-                            Text(hexagram.yaoci[index])
-                                .font(.body)
-                                .padding(.vertical, 2)
-                        }
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("卦象解释")
-                            .font(.headline)
-                        
-                        Text(hexagram.explanation)
-                            .font(.body)
-                            .lineLimit(10...50)
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
+
+                if let yaos,
+                   let hexagram = HexagramProvider.findHexagram(by: yaos) {
+                    HexagramDisplay(hexagram: hexagram)
+                } else {
+                    Text("未找到对应的卦象")
+                        .font(.title3)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 24)
                 }
             }
             .padding()
@@ -178,13 +145,21 @@ struct SessionDetailView: View {
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.string(from: date)
     }
-}
 
-#Preview {
-    let dataStorage = DataStorageManager.shared
-
-    return NavigationStack {
-        HistoryView()
+    private func profileName(for session: DivinationSession) -> String {
+        guard let profileId = session.profileId else { return "未关联模板" }
+        return dataStorage.profiles.first(where: { $0.id == profileId })?.name ?? "模板已删除"
     }
-    .environmentObject(dataStorage)
 }
+
+#if DEBUG
+struct HistoryView_Previews: PreviewProvider {
+    static var previews: some View {
+        let dataStorage = DataStorageManager.shared
+        return NavigationStack {
+            HistoryView()
+        }
+        .environmentObject(dataStorage)
+    }
+}
+#endif

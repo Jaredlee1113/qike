@@ -18,17 +18,23 @@ struct CameraOverlay: View {
 
     private func columnGuide(rect: CGRect, fullHeight: CGFloat) -> some View {
         Path { path in
-            path.move(to: CGPoint(x: rect.minX, y: 0))
-            path.addLine(to: CGPoint(x: rect.minX, y: fullHeight))
-            path.move(to: CGPoint(x: rect.maxX, y: 0))
-            path.addLine(to: CGPoint(x: rect.maxX, y: fullHeight))
+            let top = max(rect.minY, 0)
+            let bottom = min(rect.maxY, fullHeight)
+            path.move(to: CGPoint(x: rect.minX, y: top))
+            path.addLine(to: CGPoint(x: rect.minX, y: bottom))
+            path.move(to: CGPoint(x: rect.maxX, y: top))
+            path.addLine(to: CGPoint(x: rect.maxX, y: bottom))
         }
         .stroke(Color.blue.opacity(0.9), lineWidth: 2)
     }
 }
 
-#Preview {
-    CameraOverlay()
-        .frame(width: 400, height: 800)
-        .background(Color.black.opacity(0.8))
+#if DEBUG
+struct CameraOverlay_Previews: PreviewProvider {
+    static var previews: some View {
+        CameraOverlay()
+            .frame(width: 400, height: 800)
+            .background(Color.black.opacity(0.8))
+    }
 }
+#endif

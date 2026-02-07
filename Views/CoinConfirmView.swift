@@ -173,21 +173,25 @@ struct CoinConfirmView: View {
     }
 }
 
-#Preview {
-    let sampleImage = UIImage(systemName: "circle.fill") ?? UIImage()
-    let sample = CoinDetector.DetectedCoin(
-        image: sampleImage,
-        maskedImage: nil,
-        position: 6,
-        rect: CGRect(x: 0, y: 0, width: 100, height: 100),
-        normalizedRect: CGRect(x: 0, y: 0, width: 0.2, height: 0.2)
-    )
-    return CoinConfirmView(
-        detections: [sample, sample, sample, sample, sample, sample],
-        suggestedResults: [],
-        isProcessing: false,
-        onConfirm: { _ in },
-        onRetake: {},
-        onRedetect: {}
-    )
+#if DEBUG
+struct CoinConfirmView_Previews: PreviewProvider {
+    static var previews: some View {
+        let sampleImage = UIImage(systemName: "circle.fill") ?? UIImage()
+        let sample = CoinDetector.DetectedCoin(
+            image: sampleImage,
+            maskedImage: nil,
+            position: 6,
+            rect: CGRect(x: 0, y: 0, width: 100, height: 100),
+            normalizedRect: CGRect(x: 0, y: 0, width: 0.2, height: 0.2)
+        )
+        return CoinConfirmView(
+            detections: [sample, sample, sample, sample, sample, sample],
+            suggestedResults: [],
+            isProcessing: false,
+            onConfirm: { _ in },
+            onRetake: {},
+            onRedetect: {}
+        )
+    }
 }
+#endif

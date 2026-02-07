@@ -9,6 +9,7 @@ final class LiveDetectionController: ObservableObject {
     @Published private(set) var detections: [CoinDetector.DetectedCoin] = []
     @Published private(set) var results: [CoinResult] = []
     @Published private(set) var statusText: String = "实时检测中…"
+    @Published private(set) var shouldSuggestTorch: Bool = false
 
     private let processingQueue = DispatchQueue(label: "coin.live.detection.queue")
     private let minInterval: CFTimeInterval
@@ -27,6 +28,22 @@ final class LiveDetectionController: ObservableObject {
     private var invertSides = false
     private var previewSize: CGSize = .zero
     private let presenceCalibration = ImageProcessor.CoinPresenceCalibration.default
+    private let qualityCalibration = ImageProcessor.CoinQualityCalibration.default
+    private let stableFramesRequired = 6
+    private var stableFrameCount = 0
+    private let smootherResetMissLimit = 10
+    private var qualityMissCount = 0
+    private let lowLightFramesRequired = 8
+    private var lowLightFrameCount = 0
+
+    private struct SlotEvaluation {
+        let detection: CoinDetector.DetectedCoin
+        let isPresent: Bool
+        let isQualityPass: Bool
+        let isStrictQualityPass: Bool
+        let energyMean: Float
+        let qualityScore: Float
+    }
 
     init(minInterval: CFTimeInterval = 0.15) {
         self.minInterval = minInterval
@@ -44,6 +61,10 @@ final class LiveDetectionController: ObservableObject {
                 self.frontDescriptors = []
                 self.backDescriptors = []
                 self.descriptorCalibration = .default
+                self.stableFrameCount = 0
+                self.qualityMissCount = 0
+                self.lowLightFrameCount = 0
+                self.smoother.reset()
                 return
             }
 
@@ -59,6 +80,10 @@ final class LiveDetectionController: ObservableObject {
                 frontDescriptors: self.frontDescriptors,
                 backDescriptors: self.backDescriptors
             )
+            self.stableFrameCount = 0
+            self.qualityMissCount = 0
+            self.lowLightFrameCount = 0
+            self.smoother.reset()
         }
     }
 
@@ -99,6 +124,18 @@ final class LiveDetectionController: ObservableObject {
             let descriptorCalibration = self.descriptorCalibration
             let hasTemplates = (!frontDescriptors.isEmpty && !backDescriptors.isEmpty)
                 || (!frontTemplates.isEmpty && !backTemplates.isEmpty)
+            let width = CVPixelBufferGetWidth(pixelBuffer)
+            let height = CVPixelBufferGetHeight(pixelBuffer)
+            let orientation: CGImagePropertyOrientation = width >= height ? .right : .up
+            guard let frameImage = ImageProcessor.imageFromPixelBuffer(
+                pixelBuffer,
+                orientation: orientation,
+                context: self.ciContext
+            ) else {
+                self.isProcessing = false
+                return
+            }
+            let normalized = ImageProcessor.normalizeOrientation(frameImage)
 
             Task.detached { [weak self] in
                 guard let self = self else { return }
@@ -108,51 +145,48 @@ final class LiveDetectionController: ObservableObject {
                     }
                 }
 
-                let width = CVPixelBufferGetWidth(pixelBuffer)
-                let height = CVPixelBufferGetHeight(pixelBuffer)
-                let orientation: CGImagePropertyOrientation = width >= height ? .right : .up
-
-                guard let frameImage = ImageProcessor.imageFromPixelBuffer(
-                    pixelBuffer,
-                    orientation: orientation,
-                    context: self.ciContext
-                ) else {
-                    return
-                }
-
-                let normalized = ImageProcessor.normalizeOrientation(frameImage)
                 let detections = ROICropper.slotDetections(for: normalized, in: self.previewSize)
-                let validDetections = detections.filter { detection in
-                    let presenceScales: [CGFloat] = [1.0, 0.75]
-                    var isPresent = false
-                    var lastMetrics: ImageProcessor.CoinPresenceMetrics?
-
-                    for scale in presenceScales {
-                        let candidate = scale >= 0.999 ? detection.image : ImageProcessor.centerCrop(detection.image, scale: scale)
-                        guard let metrics = ImageProcessor.coinPresenceMetrics(
-                            for: candidate,
-                            calibration: self.presenceCalibration
-                        ) else {
-                            continue
-                        }
-                        lastMetrics = metrics
-                        if metrics.isPresent {
-                            isPresent = true
-                            break
-                        }
-                    }
-                    #if DEBUG
-                    if !isPresent, let metrics = lastMetrics {
-                        print(String(format: "Presence: pos=%d energy=%.3f ring=%.3f", detection.position, metrics.energyMean, metrics.ringRatio))
-                    }
-                    #endif
-                    return isPresent
+                let evaluations = detections.map { detection in
+                    self.evaluateSlot(detection)
                 }
-                let validCount = validDetections.count
+
+                let presentDetections = evaluations
+                    .filter { $0.isPresent }
+                    .map(\.detection)
+                let qualityDetections = evaluations
+                    .filter { $0.isQualityPass }
+                    .map(\.detection)
+                let strictQualityCount = evaluations
+                    .filter { $0.isStrictQualityPass }
+                    .map(\.detection.position)
+                    .reduce(into: Set<Int>()) { $0.insert($1) }
+                    .count
+
+                let presentCount = Set(presentDetections.map(\.position)).count
+                let qualityCount = Set(qualityDetections.map(\.position)).count
+                let qualityReady = qualityCount == 6 && strictQualityCount >= 4
+                let lowLightSuggested = self.nextLowLightSuggestion(
+                    evaluations: evaluations,
+                    presentCount: presentCount,
+                    qualityCount: qualityCount
+                )
+
+                self.stableFrameCount = Self.nextStableFrameCount(
+                    current: self.stableFrameCount,
+                    qualityReady: qualityReady,
+                    required: self.stableFramesRequired
+                )
+                if qualityReady {
+                    self.qualityMissCount = 0
+                } else {
+                    self.qualityMissCount = min(self.qualityMissCount + 1, self.smootherResetMissLimit)
+                }
+                let stableReady = self.stableFrameCount >= self.stableFramesRequired
 
                 var results: [CoinResult] = []
-                if validCount == 6, hasTemplates {
-                    let roiCandidates: [(Int, [UIImage])] = validDetections.map { detection in
+                if stableReady, qualityReady, hasTemplates {
+                    let lockedDetections = qualityDetections.sorted { $0.position < $1.position }
+                    let roiCandidates: [(Int, [UIImage])] = lockedDetections.map { detection in
                         let zoomScales: [CGFloat] = [1.0, 0.82, 0.68]
                         var candidates = ImageProcessor.zoomedVariants(for: detection.image, scales: zoomScales)
                         if let masked = detection.maskedImage {
@@ -175,19 +209,26 @@ final class LiveDetectionController: ObservableObject {
                         results = CoinResultTransformer.invertSides(results)
                     }
                 } else {
-                    self.smoother.reset()
+                    if self.qualityMissCount >= self.smootherResetMissLimit {
+                        self.smoother.reset()
+                    }
                 }
 
                 let status = self.buildStatus(
-                    validCount: validCount,
+                    presentCount: presentCount,
+                    qualityCount: qualityCount,
+                    strictQualityCount: strictQualityCount,
+                    stableFrameCount: self.stableFrameCount,
                     results: results,
-                    hasTemplates: hasTemplates
+                    hasTemplates: hasTemplates,
+                    lowLightSuggested: lowLightSuggested
                 )
 
                 DispatchQueue.main.async {
-                    self.detections = validDetections
+                    self.detections = qualityDetections
                     self.results = results
                     self.statusText = status
+                    self.shouldSuggestTorch = lowLightSuggested
                 }
             }
         }
@@ -199,6 +240,9 @@ final class LiveDetectionController: ObservableObject {
             self.lastInferenceTime = 0
             self.isProcessing = false
             self.isEnabled = true
+            self.stableFrameCount = 0
+            self.qualityMissCount = 0
+            self.lowLightFrameCount = 0
             self.smoother.reset()
         }
 
@@ -206,28 +250,52 @@ final class LiveDetectionController: ObservableObject {
             self.detections = []
             self.results = []
             self.statusText = "实时检测中…"
+            self.shouldSuggestTorch = false
         }
     }
 
     private func buildStatus(
-        validCount: Int,
+        presentCount: Int,
+        qualityCount: Int,
+        strictQualityCount: Int,
+        stableFrameCount: Int,
         results: [CoinResult],
-        hasTemplates: Bool
+        hasTemplates: Bool,
+        lowLightSuggested: Bool
     ) -> String {
         guard hasTemplates else {
             return "请先设置铜钱模板"
         }
 
-        guard validCount > 0 else {
+        guard presentCount > 0 else {
             return "未检测到铜钱"
         }
 
-        if validCount < 6 {
-            return "检测到\(validCount)枚，继续调整"
+        if presentCount < 6 {
+            return "检测到\(presentCount)枚，继续调整"
+        }
+
+        if qualityCount < 6 {
+            if lowLightSuggested {
+                return "检测到6枚，光线偏暗，可尝试打开闪光灯"
+            }
+            return "检测到6枚，画面质量不足，请微调角度/光线"
+        }
+
+        if strictQualityCount < 4 {
+            return "检测到6枚，定位偏移较大，请对齐中线后重试"
+        }
+
+        if stableFrameCount < stableFramesRequired {
+            return "检测到6枚，稳定中 \(stableFrameCount)/\(stableFramesRequired)"
         }
 
         guard !results.isEmpty else {
             return "检测到6枚，匹配中…"
+        }
+
+        if !ResultReliabilityEvaluator.isReliable(results) {
+            return "阴阳匹配稳定性不足，请微调角度/光线"
         }
 
         if results.contains(where: { $0.side == .uncertain || $0.side == .invalid }) {
@@ -235,5 +303,110 @@ final class LiveDetectionController: ObservableObject {
         }
 
         return "已识别6枚，正在展示结果"
+    }
+
+    private func nextLowLightSuggestion(
+        evaluations: [SlotEvaluation],
+        presentCount: Int,
+        qualityCount: Int
+    ) -> Bool {
+        guard !evaluations.isEmpty else {
+            lowLightFrameCount = 0
+            return false
+        }
+        let avgEnergy = evaluations.reduce(0) { $0 + $1.energyMean } / Float(evaluations.count)
+        let avgQuality = evaluations.reduce(0) { $0 + $1.qualityScore } / Float(evaluations.count)
+        let lowLightFrame = presentCount >= 4
+            && qualityCount < 6
+            && avgEnergy < 0.11
+            && avgQuality < 0.60
+
+        if lowLightFrame {
+            lowLightFrameCount = min(lowLightFrameCount + 1, lowLightFramesRequired)
+        } else {
+            lowLightFrameCount = max(lowLightFrameCount - 1, 0)
+        }
+        return lowLightFrameCount >= lowLightFramesRequired
+    }
+
+    private func evaluateSlot(_ detection: CoinDetector.DetectedCoin) -> SlotEvaluation {
+        let presenceScales: [CGFloat] = [1.0]
+        var isPresent = false
+        var isQualityPass = false
+        var isStrictQualityPass = false
+        var bestMetrics: ImageProcessor.CoinPresenceMetrics?
+        var bestQualityScore = -Float.greatestFiniteMagnitude
+
+        for scale in presenceScales {
+            let candidate = scale >= 0.999
+                ? detection.image
+                : ImageProcessor.centerCrop(detection.image, scale: scale)
+            guard let metrics = ImageProcessor.coinPresenceMetrics(
+                for: candidate,
+                calibration: presenceCalibration
+            ) else {
+                continue
+            }
+            if metrics.qualityScore > bestQualityScore {
+                bestQualityScore = metrics.qualityScore
+                bestMetrics = metrics
+            }
+            if metrics.isPresent {
+                isPresent = true
+            }
+            if ImageProcessor.isCoinHighQualityForSlot(
+                position: detection.position,
+                energyMean: metrics.energyMean,
+                ringRatio: metrics.ringRatio,
+                centroidOffset: metrics.centroidOffset,
+                calibration: qualityCalibration
+            ) {
+                isQualityPass = true
+            }
+            if ImageProcessor.isCoinHighQuality(
+                energyMean: metrics.energyMean,
+                ringRatio: metrics.ringRatio,
+                centroidOffset: metrics.centroidOffset,
+                calibration: qualityCalibration
+            ) {
+                isStrictQualityPass = true
+            }
+        }
+
+        #if DEBUG
+        if let metrics = bestMetrics, (!isPresent || !isQualityPass) {
+            let label = isPresent ? "QualityReject" : "Presence"
+            print(
+                String(
+                    format: "%@: pos=%d energy=%.3f ring=%.3f offset=%.3f quality=%.3f",
+                    label,
+                    detection.position,
+                    metrics.energyMean,
+                    metrics.ringRatio,
+                    metrics.centroidOffset,
+                    metrics.qualityScore
+                )
+            )
+        }
+        #endif
+
+        return SlotEvaluation(
+            detection: detection,
+            isPresent: isPresent,
+            isQualityPass: isQualityPass,
+            isStrictQualityPass: isStrictQualityPass,
+            energyMean: bestMetrics?.energyMean ?? 0,
+            qualityScore: bestMetrics?.qualityScore ?? 0
+        )
+    }
+
+    static func nextStableFrameCount(
+        current: Int,
+        qualityReady: Bool,
+        required: Int
+    ) -> Int {
+        let clampedRequired = max(required, 1)
+        guard qualityReady else { return 0 }
+        return min(current + 1, clampedRequired)
     }
 }

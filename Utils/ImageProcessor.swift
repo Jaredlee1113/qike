@@ -12,10 +12,109 @@ class ImageProcessor {
         static let `default` = CoinPresenceCalibration(minEnergy: 0.02, minRingRatio: 0.12)
     }
 
+    struct CoinQualityCalibration {
+        let minEnergy: Float
+        let minRingRatio: Float
+        let maxCentroidOffset: Float
+        let minQualityScore: Float
+
+        static let `default` = CoinQualityCalibration(
+            minEnergy: 0.070,
+            minRingRatio: 0.055,
+            maxCentroidOffset: 0.28,
+            minQualityScore: 0.64
+        )
+    }
+
     struct CoinPresenceMetrics {
         let energyMean: Float
         let ringRatio: Float
+        let centroidOffset: Float
+        let qualityScore: Float
         let isPresent: Bool
+    }
+
+    static func isCoinPresent(
+        energyMean: Float,
+        ringRatio: Float,
+        calibration: CoinPresenceCalibration = .default
+    ) -> Bool {
+        let strictPresent = energyMean >= calibration.minEnergy && ringRatio >= calibration.minRingRatio
+
+        // Fallback: some edge slots produce lower ring ratios due perspective/cropping,
+        // but still have strong edge energy. Accept these high-confidence cases.
+        let relaxedEnergyThreshold = max(calibration.minEnergy * 6, 0.12)
+        let relaxedRingThreshold = max(calibration.minRingRatio * 0.35, 0.04)
+        let relaxedPresent = energyMean >= relaxedEnergyThreshold && ringRatio >= relaxedRingThreshold
+
+        return strictPresent || relaxedPresent
+    }
+
+    static func coinQualityScore(
+        energyMean: Float,
+        ringRatio: Float,
+        centroidOffset: Float
+    ) -> Float {
+        let energyComponent = min(max(energyMean / 0.2, 0), 1)
+        let ringComponent = min(max(ringRatio / 0.12, 0), 1)
+        let centerComponent = min(max(1 - (centroidOffset / 0.65), 0), 1)
+        return (0.45 * energyComponent) + (0.35 * ringComponent) + (0.20 * centerComponent)
+    }
+
+    static func isCoinHighQuality(
+        energyMean: Float,
+        ringRatio: Float,
+        centroidOffset: Float,
+        calibration: CoinQualityCalibration = .default
+    ) -> Bool {
+        let score = coinQualityScore(
+            energyMean: energyMean,
+            ringRatio: ringRatio,
+            centroidOffset: centroidOffset
+        )
+        return energyMean >= calibration.minEnergy
+            && ringRatio >= calibration.minRingRatio
+            && centroidOffset <= calibration.maxCentroidOffset
+            && score >= calibration.minQualityScore
+    }
+
+    static func isCoinHighQualityForSlot(
+        position: Int,
+        energyMean: Float,
+        ringRatio: Float,
+        centroidOffset: Float,
+        calibration: CoinQualityCalibration = .default
+    ) -> Bool {
+        if isCoinHighQuality(
+            energyMean: energyMean,
+            ringRatio: ringRatio,
+            centroidOffset: centroidOffset,
+            calibration: calibration
+        ) {
+            return true
+        }
+
+        let score = coinQualityScore(
+            energyMean: energyMean,
+            ringRatio: ringRatio,
+            centroidOffset: centroidOffset
+        )
+
+        if position == 1 || position == 6 {
+            return energyMean >= 0.15
+                && ringRatio >= 0.09
+                && centroidOffset <= 0.34
+                && score >= 0.78
+        }
+
+        if position == 2 || position == 5 {
+            return energyMean >= 0.13
+                && ringRatio >= 0.08
+                && centroidOffset <= 0.33
+                && score >= 0.74
+        }
+
+        return false
     }
 
     static func normalizeOrientation(_ image: UIImage) -> UIImage {
@@ -230,6 +329,9 @@ class ImageProcessor {
 
         var totalEnergy: Float = 0
         var ringEnergy: Float = 0
+        var weightedX: Float = 0
+        var weightedY: Float = 0
+        var weightedSum: Float = 0
 
         for y in 1..<(height - 1) {
             let row = y * width
@@ -237,7 +339,6 @@ class ImageProcessor {
             let rowBelow = (y + 1) * width
             let fy = Float(y) - cy
             for x in 1..<(width - 1) {
-                let idx = row + x
                 let fx = Float(x) - cx
 
                 let gx =
@@ -256,19 +357,55 @@ class ImageProcessor {
                 if r >= 0.32 && r <= 0.50 {
                     ringEnergy += magnitude
                 }
+                if r <= 0.70 && magnitude > 0 {
+                    weightedX += Float(x) * magnitude
+                    weightedY += Float(y) * magnitude
+                    weightedSum += magnitude
+                }
             }
         }
 
         let count = Float((width - 2) * (height - 2))
         guard totalEnergy > 0, count > 0 else {
-            return CoinPresenceMetrics(energyMean: 0, ringRatio: 0, isPresent: false)
+            return CoinPresenceMetrics(
+                energyMean: 0,
+                ringRatio: 0,
+                centroidOffset: 1,
+                qualityScore: 0,
+                isPresent: false
+            )
         }
 
         let energyMean = (totalEnergy / count) / 255.0
         let ringRatio = ringEnergy / totalEnergy
-        let isPresent = energyMean >= calibration.minEnergy && ringRatio >= calibration.minRingRatio
+        let centroidOffset: Float
+        if weightedSum > 0 {
+            let centroidX = weightedX / weightedSum
+            let centroidY = weightedY / weightedSum
+            let dx = centroidX - cx
+            let dy = centroidY - cy
+            centroidOffset = sqrt(dx * dx + dy * dy) / radius
+        } else {
+            centroidOffset = 1
+        }
+        let qualityScore = coinQualityScore(
+            energyMean: energyMean,
+            ringRatio: ringRatio,
+            centroidOffset: centroidOffset
+        )
+        let isPresent = isCoinPresent(
+            energyMean: energyMean,
+            ringRatio: ringRatio,
+            calibration: calibration
+        )
 
-        return CoinPresenceMetrics(energyMean: energyMean, ringRatio: ringRatio, isPresent: isPresent)
+        return CoinPresenceMetrics(
+            energyMean: energyMean,
+            ringRatio: ringRatio,
+            centroidOffset: centroidOffset,
+            qualityScore: qualityScore,
+            isPresent: isPresent
+        )
     }
 
     static func coinDescriptor(for image: UIImage, size: Int = 64) -> [Float]? {

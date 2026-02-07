@@ -12,7 +12,9 @@ struct SetupProfileView: View {
     @State private var showingImagePicker = false
     @State private var pickerType: PickerType = .front
     @State private var errorMessage: String?
+    @State private var alertTitle = "提示"
     @State private var showingAlert = false
+    @State private var shouldDismissAfterAlert = false
     @State private var isSaving = false
     
     enum PickerType {
@@ -125,8 +127,12 @@ struct SetupProfileView: View {
         .sheet(isPresented: $showingImagePicker) {
             ImagePicker(selectedImages: pickerType == .front ? $frontTemplateImages : $backTemplateImages)
         }
-        .alert("提示", isPresented: $showingAlert) {
-            Button("确定", role: .cancel) { }
+        .alert(alertTitle, isPresented: $showingAlert) {
+            Button("确定", role: .cancel) {
+                if shouldDismissAfterAlert {
+                    dismiss()
+                }
+            }
         } message: {
             if let errorMessage = errorMessage {
                 Text(errorMessage)
@@ -150,6 +156,8 @@ struct SetupProfileView: View {
     private func saveProfile() {
         guard !isSaving else { return }
         guard !frontTemplateImages.isEmpty, !backTemplateImages.isEmpty else {
+            alertTitle = "提示"
+            shouldDismissAfterAlert = false
             errorMessage = "请先添加正反面模板"
             showingAlert = true
             return
@@ -164,10 +172,13 @@ struct SetupProfileView: View {
         Task.detached(priority: .userInitiated) {
             let frontTemplateData = await TemplateManager.createTemplates(from: frontImages)
             let backTemplateData = await TemplateManager.createTemplates(from: backImages)
+            let hasFrontTemplate = !frontTemplateData.descriptors.isEmpty || !frontTemplateData.featurePrints.isEmpty
+            let hasBackTemplate = !backTemplateData.descriptors.isEmpty || !backTemplateData.featurePrints.isEmpty
 
-            guard !frontTemplateData.featurePrints.isEmpty,
-                  !backTemplateData.featurePrints.isEmpty else {
+            guard hasFrontTemplate, hasBackTemplate else {
                 await MainActor.run {
+                    alertTitle = "提示"
+                    shouldDismissAfterAlert = false
                     errorMessage = "模板生成失败，请确保图片中有完整清晰的单枚铜钱"
                     showingAlert = true
                     isSaving = false
@@ -178,6 +189,8 @@ struct SetupProfileView: View {
             guard let frontData = TemplateManager.serializeTemplateData(frontTemplateData),
                   let backData = TemplateManager.serializeTemplateData(backTemplateData) else {
                 await MainActor.run {
+                    alertTitle = "提示"
+                    shouldDismissAfterAlert = false
                     errorMessage = "模板生成失败"
                     showingAlert = true
                     isSaving = false
@@ -192,7 +205,10 @@ struct SetupProfileView: View {
                     backTemplates: backData
                 )
                 isSaving = false
-                dismiss()
+                alertTitle = "保存成功"
+                shouldDismissAfterAlert = true
+                errorMessage = "模板已保存并设为当前模板"
+                showingAlert = true
             }
         }
     }
@@ -302,6 +318,13 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
 }
 
-#Preview {
-    SetupProfileView()
+#if DEBUG
+struct SetupProfileView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationStack {
+            SetupProfileView()
+                .environmentObject(DataStorageManager.shared)
+        }
+    }
 }
+#endif

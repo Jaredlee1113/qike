@@ -38,6 +38,7 @@
 		1000029 /* Recognition/LiveDetectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000029 /* Recognition/LiveDetectionController.swift */; };
 		1000030 /* Utils/CoinResultSmoother.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000030 /* Utils/CoinResultSmoother.swift */; };
 		1000031 /* Utils/CoinResultTransformer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000031 /* Utils/CoinResultTransformer.swift */; };
+		1000032 /* Views/TemplateCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000032 /* Views/TemplateCenterView.swift */; };
 		48FDD31E2F1E7CB800848679 /* HexagramImages in Resources */ = {isa = PBXBuildFile; fileRef = 737142052D26416AA504BBE8 /* HexagramImages */; };
 		6199290CA9484812991AA301 /* HexagramImages in Resources */ = {isa = PBXBuildFile; fileRef = 737142052D26416AA504BBE8 /* HexagramImages */; };
 /* End PBXBuildFile section */
@@ -84,6 +85,7 @@
 		2000029 /* Recognition/LiveDetectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Recognition/LiveDetectionController.swift; sourceTree = "<group>"; };
 		2000030 /* Utils/CoinResultSmoother.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/CoinResultSmoother.swift; sourceTree = "<group>"; };
 		2000031 /* Utils/CoinResultTransformer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils/CoinResultTransformer.swift; sourceTree = "<group>"; };
+		2000032 /* Views/TemplateCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/TemplateCenterView.swift; sourceTree = "<group>"; };
 		3000001 /* TianjiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TianjiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3000002 /* TianjiAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TianjiAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		737142052D26416AA504BBE8 /* HexagramImages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HexagramImages; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 				2000024 /* Views/ManualInputView.swift */,
 				2000025 /* Views/HexagramTestView.swift */,
 				2000028 /* Views/CoinConfirmView.swift */,
+				2000032 /* Views/TemplateCenterView.swift */,
 				2000014 /* Camera/CameraManager.swift */,
 				2000015 /* Camera/CameraPreview.swift */,
 				2000016 /* Camera/CameraOverlay.swift */,
@@ -293,6 +296,7 @@
 				1000024 /* Views/ManualInputView.swift in Sources */,
 				1000025 /* Views/HexagramTestView.swift in Sources */,
 				1000028 /* Views/CoinConfirmView.swift in Sources */,
+				1000032 /* Views/TemplateCenterView.swift in Sources */,
 				1000014 /* Camera/CameraManager.swift in Sources */,
 				1000015 /* Camera/CameraPreview.swift in Sources */,
 				1000016 /* Camera/CameraOverlay.swift in Sources */,

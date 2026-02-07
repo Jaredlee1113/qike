@@ -273,8 +273,12 @@ struct ActivityView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-#Preview {
-    NavigationStack {
-        ResultView(yaos: [.yang, .yang, .yang, .yang, .yang, .yang])
+#if DEBUG
+struct ResultView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationStack {
+            ResultView(yaos: [.yang, .yang, .yang, .yang, .yang, .yang])
+        }
     }
 }
+#endif

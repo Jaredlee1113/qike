@@ -5,17 +5,19 @@ import UIKit
 
 struct CameraView: View {
     @EnvironmentObject var dataStorage: DataStorageManager
+    @Environment(\.dismiss) private var dismiss
 
     @StateObject private var cameraManager = CameraManager()
     @StateObject private var liveDetector = LiveDetectionController()
     @State private var capturedImage: UIImage?
+    @State private var resultYaos: [YinYang] = []
     @State private var showingResult = false
     @State private var showingConfirm = false
     @State private var processing = false
     @State private var processingStage: String?
     @State private var errorMessage: String?
     @State private var showingAlert = false
-    @State private var showingSetupProfile = false
+    @State private var showingTemplateCenter = false
     @State private var showingManualInput = false
     @State private var showingPhotoPicker = false
     @State private var pickedImage: UIImage?
@@ -36,6 +38,45 @@ struct CameraView: View {
 
     private var isUITesting: Bool {
         ProcessInfo.processInfo.arguments.contains("-ui-testing")
+    }
+
+    private var uiTestFlags: CameraViewUITestFlags {
+        CameraViewUITestFlags.current
+    }
+
+    private var shouldBypassTemplateRequirementForUITest: Bool {
+        uiTestFlags.shouldBypassTemplateRequirement
+    }
+
+    private var layoutCheckStatusText: String {
+        CameraViewUITestFlags.layoutStatusText(for: previewSize)
+    }
+
+    private var uiTestStatusText: String {
+        if uiTestFlags.presenceCheck {
+            return CameraViewUITestFlags.presenceStatusText()
+        }
+        if uiTestFlags.qualityCheck {
+            return CameraViewUITestFlags.qualityStatusText()
+        }
+        if uiTestFlags.stabilityCheck {
+            return CameraViewUITestFlags.stabilityStatusText()
+        }
+        if uiTestFlags.matchCheck {
+            return CameraViewUITestFlags.matchStatusText()
+        }
+        if uiTestFlags.reliabilityCheck {
+            return CameraViewUITestFlags.reliabilityStatusText()
+        }
+        if uiTestFlags.lowLightHintCheck {
+            return "LOW_LIGHT_HINT_OK"
+        }
+        return layoutCheckStatusText
+    }
+
+    private var shouldShowTorchHint: Bool {
+        (liveDetector.shouldSuggestTorch || cameraManager.isTorchOn || uiTestFlags.lowLightHintCheck) &&
+            (cameraManager.hasTorch || uiTestFlags.lowLightHintCheck)
     }
 
     private var isCameraAuthorized: Bool {
@@ -64,6 +105,18 @@ struct CameraView: View {
 
             uiLayer
 
+            if uiTestFlags.layoutCheck || uiTestFlags.presenceCheck || uiTestFlags.qualityCheck || uiTestFlags.stabilityCheck || uiTestFlags.matchCheck || uiTestFlags.reliabilityCheck || uiTestFlags.lowLightHintCheck {
+                Text(uiTestStatusText)
+                    .font(.caption2)
+                    .foregroundColor(.white)
+                    .padding(6)
+                    .background(Color.black.opacity(0.5))
+                    .cornerRadius(6)
+                    .accessibilityIdentifier("uiTestStatus")
+                    .padding(.top, 12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+
             if capturedImage == nil {
                 permissionOverlay
             }
@@ -71,25 +124,30 @@ struct CameraView: View {
         .navigationTitle("起课")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            if dataStorage.profiles.isEmpty {
+            if dataStorage.activeProfile == nil && !shouldBypassTemplateRequirementForUITest {
                 errorMessage = "请先设置铜钱模板"
                 showingAlert = true
             }
-            liveDetector.updateProfile(dataStorage.profiles.first)
+            liveDetector.updateProfile(dataStorage.activeProfile)
             cameraManager.onFrame = { [weak liveDetector] pixelBuffer, _ in
                 liveDetector?.handleFrame(pixelBuffer)
             }
             updateLiveDetectionState()
             updateCameraAuthorization()
             scheduleAlignHintDismissal()
+            injectMockConfirmIfNeeded()
         }
         .onDisappear {
+            cameraManager.setTorchEnabled(false)
             cameraManager.stopSession()
             cameraManager.onFrame = nil
             liveDetector.reset()
         }
-        .onReceive(dataStorage.$profiles) { profiles in
-            liveDetector.updateProfile(profiles.first)
+        .onReceive(dataStorage.$profiles) { _ in
+            liveDetector.updateProfile(dataStorage.activeProfile)
+        }
+        .onReceive(dataStorage.$activeProfileId) { _ in
+            liveDetector.updateProfile(dataStorage.activeProfile)
         }
         .onChange(of: capturedImage) { _ in
             updateLiveDetectionState()
@@ -100,6 +158,7 @@ struct CameraView: View {
         .onReceive(liveDetector.$results) { results in
             guard capturedImage == nil, !showingResult, !showingConfirm else { return }
             guard isResultReady(results) else { return }
+            guard hasReliableResults(results) else { return }
             detectedCoins = liveDetector.detections
             suggestedResults = results
             debugMatchResults = results
@@ -113,8 +172,8 @@ struct CameraView: View {
         }
         .alert("提示", isPresented: $showingAlert) {
             Button("确定", role: .cancel) {
-                if dataStorage.profiles.isEmpty {
-                    showingSetupProfile = true
+                if dataStorage.activeProfile == nil {
+                    showingTemplateCenter = true
                 }
             }
         } message: {
@@ -123,14 +182,18 @@ struct CameraView: View {
             }
         }
         .fullScreenCover(isPresented: $showingResult) {
-            if let lastSession = dataStorage.getSortedSessions().first,
-               let yaos = lastSession.results?.map({ $0.yinYang }) {
+            if !resultYaos.isEmpty {
                 NavigationStack {
-                    ResultView(yaos: yaos)
+                    ResultView(yaos: resultYaos)
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
                                 Button("关闭") {
+                                    liveDetector.reset()
+                                    cameraManager.stopSession()
+                                    cameraManager.onFrame = nil
+                                    resultYaos = []
                                     showingResult = false
+                                    dismiss()
                                 }
                             }
                         }
@@ -169,8 +232,8 @@ struct CameraView: View {
         .sheet(isPresented: $showingDebugShare) {
             ActivityView(activityItems: debugShareItems)
         }
-        .navigationDestination(isPresented: $showingSetupProfile) {
-            SetupProfileView()
+        .navigationDestination(isPresented: $showingTemplateCenter) {
+            TemplateCenterView()
         }
     }
 
@@ -235,6 +298,27 @@ struct CameraView: View {
             Text(liveDetector.statusText)
                 .font(.caption2)
                 .foregroundColor(.white.opacity(0.8))
+
+            if shouldShowTorchHint {
+                HStack(spacing: 8) {
+                    Text("光线偏暗，建议打开闪光灯")
+                        .font(.caption2)
+                        .foregroundColor(.yellow)
+                    Spacer()
+                    Button(cameraManager.isTorchOn && !uiTestFlags.lowLightHintCheck ? "关闭闪光灯" : "打开闪光灯") {
+                        if uiTestFlags.lowLightHintCheck {
+                            return
+                        }
+                        cameraManager.toggleTorch()
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.2))
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                }
+            }
         }
         .padding(12)
         .background(Color.black.opacity(0.6))
@@ -264,8 +348,8 @@ struct CameraView: View {
                     showingManualInput = true
                 }
 
-                secondaryButton(title: "设置模板") {
-                    showingSetupProfile = true
+                secondaryButton(title: "模板中心") {
+                    showingTemplateCenter = true
                 }
             }
         }
@@ -355,7 +439,7 @@ struct CameraView: View {
                             .background(processing ? Color.gray : Color.blue)
                             .cornerRadius(12)
                         }
-                        .disabled(processing || dataStorage.profiles.isEmpty)
+                        .disabled(processing || dataStorage.activeProfile == nil)
                     }
                 }
                 .padding()
@@ -503,11 +587,11 @@ struct CameraView: View {
     }
 
     private func runDetection(showConfirmAfterMatch: Bool) {
-        guard !dataStorage.profiles.isEmpty else {
+        guard dataStorage.activeProfile != nil else {
             errorMessage = "请先设置铜钱模板"
             showingAlert = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                showingSetupProfile = true
+                showingTemplateCenter = true
             }
             return
         }
@@ -530,13 +614,17 @@ struct CameraView: View {
 
                 let foundCoins = ROICropper.slotDetections(for: normalizedImage, in: previewSize)
                 let presenceCalibration = ImageProcessor.CoinPresenceCalibration.default
+                let qualityCalibration = ImageProcessor.CoinQualityCalibration.default
                 let validCoins = foundCoins.filter { detection in
-                    let presenceScales: [CGFloat] = [1.0, 0.75]
+                    let presenceScales: [CGFloat] = [1.0]
                     var isPresent = false
+                    var isQualityPass = false
                     var lastMetrics: ImageProcessor.CoinPresenceMetrics?
 
                     for scale in presenceScales {
-                        let candidate = scale >= 0.999 ? detection.image : ImageProcessor.centerCrop(detection.image, scale: scale)
+                        let candidate = scale >= 0.999
+                            ? detection.image
+                            : ImageProcessor.centerCrop(detection.image, scale: scale)
                         guard let metrics = ImageProcessor.coinPresenceMetrics(
                             for: candidate,
                             calibration: presenceCalibration
@@ -546,15 +634,34 @@ struct CameraView: View {
                         lastMetrics = metrics
                         if metrics.isPresent {
                             isPresent = true
-                            break
+                        }
+                        if ImageProcessor.isCoinHighQualityForSlot(
+                            position: detection.position,
+                            energyMean: metrics.energyMean,
+                            ringRatio: metrics.ringRatio,
+                            centroidOffset: metrics.centroidOffset,
+                            calibration: qualityCalibration
+                        ) {
+                            isQualityPass = true
                         }
                     }
                     #if DEBUG
-                    if !isPresent, let metrics = lastMetrics {
-                        print(String(format: "PhotoPresence: pos=%d energy=%.3f ring=%.3f", detection.position, metrics.energyMean, metrics.ringRatio))
+                    if (!isPresent || !isQualityPass), let metrics = lastMetrics {
+                        let label = isPresent ? "PhotoQualityReject" : "PhotoPresence"
+                        print(
+                            String(
+                                format: "%@: pos=%d energy=%.3f ring=%.3f offset=%.3f quality=%.3f",
+                                label,
+                                detection.position,
+                                metrics.energyMean,
+                                metrics.ringRatio,
+                                metrics.centroidOffset,
+                                metrics.qualityScore
+                            )
+                        )
                     }
                     #endif
-                    return isPresent
+                    return isQualityPass
                 }
                 debugLog("detected coins count=\(foundCoins.count)")
                 await MainActor.run {
@@ -568,7 +675,7 @@ struct CameraView: View {
 
                 guard validCoins.count == 6 else {
                     await MainActor.run {
-                        errorMessage = "未检测到6枚铜钱，请对齐竖线或调整光线"
+                        errorMessage = "未检测到6枚高质量铜钱，请对齐竖线并调整光线"
                         showingAlert = true
                         processing = false
                         processingStage = nil
@@ -590,11 +697,16 @@ struct CameraView: View {
 
                 await MainActor.run {
                     if isResultReady(matchResults) {
+                        guard hasReliableResults(matchResults) else {
+                            errorMessage = "阴阳匹配稳定性不足，请微调角度后重试"
+                            showingAlert = true
+                            return
+                        }
                         if showConfirmAfterMatch {
                             detectedCoins = validCoins
                             showingConfirm = true
                         } else {
-                            presentResults(matchResults, source: "photo")
+                            presentResults(matchResults, source: .photo)
                         }
                     } else {
                         errorMessage = "识别不稳定，请调整光线或重新拍摄"
@@ -613,12 +725,12 @@ struct CameraView: View {
         }
     }
 
-    private func presentResults(_ results: [CoinResult], source: String) {
+    private func presentResults(_ results: [CoinResult], source: SessionSource) {
         guard !autoPresenting else { return }
         autoPresenting = true
         defer { autoPresenting = false }
 
-        guard let profile = dataStorage.profiles.first else {
+        guard let profile = dataStorage.activeProfile else {
             errorMessage = "请先设置铜钱模板"
             showingAlert = true
             return
@@ -630,6 +742,9 @@ struct CameraView: View {
             results: results
         )
 
+        resultYaos = results
+            .sorted { $0.position < $1.position }
+            .map(\.yinYang)
         capturedImage = nil
         detectedCoins = []
         debugMatchResults = []
@@ -639,20 +754,21 @@ struct CameraView: View {
 
     private func handleConfirm(results: [CoinResult]) {
         showingConfirm = false
-        presentResults(results, source: capturedImage == nil ? "camera" : "photo")
+        presentResults(results, source: capturedImage == nil ? .camera : .photo)
     }
 
     private func isResultReady(_ results: [CoinResult]) -> Bool {
         guard results.count == 6 else { return false }
         let positions = Set(results.map { $0.position })
-        guard positions.count == 6 else { return false }
-        return results.allSatisfy { result in
-            result.side == .front || result.side == .back
-        }
+        return positions.count == 6
+    }
+
+    private func hasReliableResults(_ results: [CoinResult]) -> Bool {
+        ResultReliabilityEvaluator.isReliable(results)
     }
 
     private func matchDetectedCoins(for detections: [CoinDetector.DetectedCoin]) async -> [CoinResult] {
-        let profile: CoinProfile? = await MainActor.run { dataStorage.profiles.first }
+        let profile: CoinProfile? = await MainActor.run { dataStorage.activeProfile }
         guard let profile = profile else { return [] }
         guard let frontData = TemplateManager.deserializeTemplateData(profile.frontTemplates),
               let backData = TemplateManager.deserializeTemplateData(profile.backTemplates) else {
@@ -694,7 +810,7 @@ struct CameraView: View {
             return (detection.position, candidates)
         }
 
-        var results = await FeatureMatchService.matchAllCoinCandidates(
+        let results = await FeatureMatchService.matchAllCoinCandidates(
             roiCandidates: roiCandidates,
             frontTemplates: frontTemplates,
             backTemplates: backTemplates,
@@ -776,6 +892,58 @@ struct CameraView: View {
                 showAlignHint = false
             }
         }
+    }
+
+    private func injectMockConfirmIfNeeded() {
+        #if DEBUG
+        guard uiTestFlags.mockUncertainConfirm else { return }
+        guard capturedImage == nil, !showingResult, !showingConfirm else { return }
+
+        let baseImage = makeMockCoinImage(size: CGSize(width: 120, height: 120))
+        let detections = (1...6).map { position in
+            CoinDetector.DetectedCoin(
+                image: baseImage,
+                maskedImage: ImageProcessor.applyCircularMask(baseImage),
+                position: position,
+                rect: CGRect(x: 0, y: 0, width: 120, height: 120),
+                normalizedRect: CGRect(x: 0, y: 0, width: 0.2, height: 0.2)
+            )
+        }
+        let results = (1...6).map { position in
+            CoinResult(
+                position: position,
+                yinYang: .yang,
+                side: position % 2 == 0 ? .uncertain : .back,
+                confidence: 0.5
+            )
+        }
+
+        guard isResultReady(results) else { return }
+        detectedCoins = detections
+        suggestedResults = results
+        debugMatchResults = results
+        showingConfirm = true
+        #endif
+    }
+
+    private func makeMockCoinImage(size: CGSize) -> UIImage {
+        #if DEBUG
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { context in
+            let bounds = CGRect(origin: .zero, size: size)
+            UIColor(white: 0.85, alpha: 1).setFill()
+            context.fill(bounds)
+
+            UIColor(white: 0.25, alpha: 1).setStroke()
+            context.cgContext.setLineWidth(6)
+            context.cgContext.strokeEllipse(in: bounds.insetBy(dx: 10, dy: 10))
+
+            UIColor(white: 0.45, alpha: 1).setFill()
+            context.cgContext.fillEllipse(in: bounds.insetBy(dx: 44, dy: 44))
+        }
+        #else
+        UIImage()
+        #endif
     }
 }
 
@@ -891,6 +1059,202 @@ struct SingleImagePicker: UIViewControllerRepresentable {
     }
 }
 
-#Preview {
-    CameraView()
+private struct CameraViewUITestFlags {
+    let mockUncertainConfirm: Bool
+    let layoutCheck: Bool
+    let presenceCheck: Bool
+    let qualityCheck: Bool
+    let stabilityCheck: Bool
+    let matchCheck: Bool
+    let reliabilityCheck: Bool
+    let lowLightHintCheck: Bool
+
+    var shouldBypassTemplateRequirement: Bool {
+        mockUncertainConfirm || layoutCheck || presenceCheck || qualityCheck || stabilityCheck || matchCheck || reliabilityCheck || lowLightHintCheck
+    }
+
+    static var current: CameraViewUITestFlags {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        return CameraViewUITestFlags(
+            mockUncertainConfirm: args.contains("-ui-testing-mock-confirm-uncertain"),
+            layoutCheck: args.contains("-ui-testing-layout-check"),
+            presenceCheck: args.contains("-ui-testing-presence-check"),
+            qualityCheck: args.contains("-ui-testing-quality-check"),
+            stabilityCheck: args.contains("-ui-testing-stability-check"),
+            matchCheck: args.contains("-ui-testing-match-check"),
+            reliabilityCheck: args.contains("-ui-testing-reliability-check"),
+            lowLightHintCheck: args.contains("-ui-testing-low-light-hint-check")
+        )
+        #else
+        return CameraViewUITestFlags(
+            mockUncertainConfirm: false,
+            layoutCheck: false,
+            presenceCheck: false,
+            qualityCheck: false,
+            stabilityCheck: false,
+            matchCheck: false,
+            reliabilityCheck: false,
+            lowLightHintCheck: false
+        )
+        #endif
+    }
+
+    static func layoutStatusText(for previewSize: CGSize) -> String {
+        #if DEBUG
+        let probeSize = previewSize.width > 0 && previewSize.height > 0
+            ? previewSize
+            : UIScreen.main.bounds.size
+        let layout = SlotLayout.layoutNormalized(in: probeSize)
+        let insetTopRatio = layout.columnRect.minY / max(probeSize.height, 1)
+        let insetBottomRatio = (probeSize.height - layout.columnRect.maxY) / max(probeSize.height, 1)
+        let insetBalanced = abs(insetTopRatio - insetBottomRatio) <= 0.03
+        let inExpectedRange = insetTopRatio >= 0.05 && insetTopRatio <= 0.13
+        return insetBalanced && inExpectedRange ? "LAYOUT_OK" : "LAYOUT_BAD"
+        #else
+        return ""
+        #endif
+    }
+
+    static func presenceStatusText() -> String {
+        #if DEBUG
+        let acceptsEdgeCase = ImageProcessor.isCoinPresent(energyMean: 0.19, ringRatio: 0.06)
+        let acceptsLowRingEdge = ImageProcessor.isCoinPresent(energyMean: 0.18, ringRatio: 0.05)
+        let rejectsLowEnergyNoise = !ImageProcessor.isCoinPresent(energyMean: 0.03, ringRatio: 0.03)
+        let rejectsTooLowRing = !ImageProcessor.isCoinPresent(energyMean: 0.18, ringRatio: 0.02)
+        let allChecksPass = acceptsEdgeCase && acceptsLowRingEdge && rejectsLowEnergyNoise && rejectsTooLowRing
+        return allChecksPass ? "PRESENCE_OK" : "PRESENCE_BAD"
+        #else
+        return ""
+        #endif
+    }
+
+    static func qualityStatusText() -> String {
+        #if DEBUG
+        let acceptsBalanced = ImageProcessor.isCoinHighQuality(
+            energyMean: 0.11,
+            ringRatio: 0.08,
+            centroidOffset: 0.18
+        )
+        let rejectsLowRing = !ImageProcessor.isCoinHighQuality(
+            energyMean: 0.11,
+            ringRatio: 0.02,
+            centroidOffset: 0.18
+        )
+        let rejectsOffset = !ImageProcessor.isCoinHighQuality(
+            energyMean: 0.11,
+            ringRatio: 0.08,
+            centroidOffset: 0.72
+        )
+        let allChecksPass = acceptsBalanced && rejectsLowRing && rejectsOffset
+        return allChecksPass ? "QUALITY_OK" : "QUALITY_BAD"
+        #else
+        return ""
+        #endif
+    }
+
+    static func stabilityStatusText() -> String {
+        #if DEBUG
+        let required = 6
+        var progress = 0
+        progress = LiveDetectionController.nextStableFrameCount(current: progress, qualityReady: true, required: required)
+        progress = LiveDetectionController.nextStableFrameCount(current: progress, qualityReady: true, required: required)
+        progress = LiveDetectionController.nextStableFrameCount(current: progress, qualityReady: false, required: required)
+        let resetWorks = progress == 0
+
+        progress = LiveDetectionController.nextStableFrameCount(current: progress, qualityReady: true, required: required)
+        progress = LiveDetectionController.nextStableFrameCount(current: progress, qualityReady: true, required: required)
+        progress = LiveDetectionController.nextStableFrameCount(current: progress, qualityReady: true, required: required)
+        progress = LiveDetectionController.nextStableFrameCount(current: progress, qualityReady: true, required: required)
+        let lockWorks = progress == required
+
+        return resetWorks && lockWorks ? "STABILITY_OK" : "STABILITY_BAD"
+        #else
+        return ""
+        #endif
+    }
+
+    static func matchStatusText() -> String {
+        #if DEBUG
+        let calibration = FeatureMatchService.DescriptorCalibration.default
+        let decisiveByGap = FeatureMatchService.classifyDescriptorScores(
+            frontScore: 0.84,
+            backScore: 0.77,
+            calibration: calibration
+        )
+        let conflictLike = FeatureMatchService.classifyDescriptorScores(
+            frontScore: 0.84,
+            backScore: 0.81,
+            calibration: calibration
+        )
+        let decisiveBack = FeatureMatchService.classifyDescriptorScores(
+            frontScore: 0.60,
+            backScore: 0.73,
+            calibration: calibration
+        )
+        let weakNoise = FeatureMatchService.classifyDescriptorScores(
+            frontScore: 0.44,
+            backScore: 0.41,
+            calibration: calibration
+        )
+        let consensusFront = FeatureMatchService.resolveCandidateEvidence(
+            frontEvidence: 2.2,
+            backEvidence: 0.7,
+            frontCount: 3,
+            backCount: 1
+        )
+        let consensusUncertain = FeatureMatchService.resolveCandidateEvidence(
+            frontEvidence: 1.1,
+            backEvidence: 1.0,
+            frontCount: 1,
+            backCount: 1
+        )
+        let smoothedDominant = CoinResultSmoother.resolveSmoothedScores(frontScore: 0.57, backScore: 0.43)
+
+        let descriptorChecks =
+            decisiveByGap.0 == .front &&
+            conflictLike.0 == .uncertain &&
+            decisiveBack.0 == .back &&
+            weakNoise.0 == .invalid
+        let consensusChecks = consensusFront.0 == .front && consensusUncertain.0 == .uncertain
+        let smoothingChecks = smoothedDominant.0 == .front
+        return descriptorChecks && consensusChecks && smoothingChecks ? "MATCH_OK" : "MATCH_BAD"
+        #else
+        return ""
+        #endif
+    }
+
+    static func reliabilityStatusText() -> String {
+        #if DEBUG
+        let reliable = (1...6).map { position in
+            CoinResult(
+                position: position,
+                yinYang: position % 2 == 0 ? .yin : .yang,
+                side: position % 2 == 0 ? .front : .back,
+                confidence: 0.78
+            )
+        }
+        let unreliable = (1...6).map { position in
+            CoinResult(
+                position: position,
+                yinYang: .yang,
+                side: position == 3 ? .uncertain : .back,
+                confidence: position == 5 ? 0.48 : 0.62
+            )
+        }
+        let acceptsReliable = ResultReliabilityEvaluator.isReliable(reliable)
+        let rejectsUnreliable = !ResultReliabilityEvaluator.isReliable(unreliable)
+        return acceptsReliable && rejectsUnreliable ? "RELIABILITY_OK" : "RELIABILITY_BAD"
+        #else
+        return ""
+        #endif
+    }
 }
+
+#if DEBUG
+struct CameraView_Previews: PreviewProvider {
+    static var previews: some View {
+        CameraView()
+    }
+}
+#endif

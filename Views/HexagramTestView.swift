@@ -96,6 +96,10 @@ struct HexagramTestView: View {
     }
 }
 
-#Preview {
-    HexagramTestView()
+#if DEBUG
+struct HexagramTestView_Previews: PreviewProvider {
+    static var previews: some View {
+        HexagramTestView()
+    }
 }
+#endif

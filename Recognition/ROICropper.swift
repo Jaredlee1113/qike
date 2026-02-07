@@ -81,7 +81,7 @@ class ROICropper {
 
     static func slotDetections(
         for image: UIImage,
-        insetRatio: CGFloat = 0.08
+        insetRatio: CGFloat = -0.04
     ) -> [CoinDetector.DetectedCoin] {
         guard let cgImage = image.cgImage else { return [] }
         let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
@@ -118,7 +118,7 @@ class ROICropper {
     static func slotDetections(
         for image: UIImage,
         in viewSize: CGSize,
-        insetRatio: CGFloat = 0.08
+        insetRatio: CGFloat = -0.04
     ) -> [CoinDetector.DetectedCoin] {
         guard viewSize.width > 0, viewSize.height > 0 else {
             return slotDetections(for: image, insetRatio: insetRatio)

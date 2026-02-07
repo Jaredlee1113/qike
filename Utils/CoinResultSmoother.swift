@@ -77,14 +77,55 @@ struct CoinResultSmoother {
         let totalScore = frontScore + backScore
         guard totalScore > 0 else { return (fallback, fallbackConfidence) }
 
+        return Self.resolveSmoothedScores(frontScore: frontScore, backScore: backScore)
+    }
+
+    static func resolveSmoothedScores(
+        frontScore: Double,
+        backScore: Double
+    ) -> (CoinSide, Double) {
+        let totalScore = frontScore + backScore
+        guard totalScore > 0 else { return (.invalid, 0.0) }
+
+        let confidence = max(frontScore, backScore) / totalScore
         let delta = abs(frontScore - backScore) / totalScore
-        if delta < 0.15 {
-            let confidence = max(frontScore, backScore) / totalScore
+        if delta < 0.08 && confidence < 0.58 {
             return (.uncertain, confidence)
         }
 
         let side: CoinSide = frontScore > backScore ? .front : .back
-        let confidence = max(frontScore, backScore) / totalScore
         return (side, confidence)
+    }
+}
+
+enum ResultReliabilityEvaluator {
+    struct Calibration {
+        let minPerCoinConfidence: Double
+        let minAverageConfidence: Double
+        let maxLowConfidenceCount: Int
+
+        static let `default` = Calibration(
+            minPerCoinConfidence: 0.57,
+            minAverageConfidence: 0.66,
+            maxLowConfidenceCount: 1
+        )
+    }
+
+    static func isReliable(
+        _ results: [CoinResult],
+        calibration: Calibration = .default
+    ) -> Bool {
+        guard results.count == 6 else { return false }
+        guard Set(results.map(\.position)).count == 6 else { return false }
+        guard results.allSatisfy({ $0.side == .front || $0.side == .back }) else {
+            return false
+        }
+
+        let confidences = results.map { min(max($0.confidence, 0), 1) }
+        let lowConfidenceCount = confidences.filter { $0 < calibration.minPerCoinConfidence }.count
+        guard lowConfidenceCount <= calibration.maxLowConfidenceCount else { return false }
+
+        let averageConfidence = confidences.reduce(0, +) / Double(confidences.count)
+        return averageConfidence >= calibration.minAverageConfidence
     }
 }

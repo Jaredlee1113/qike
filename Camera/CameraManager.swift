@@ -6,11 +6,13 @@ class CameraManager: NSObject, ObservableObject {
     private let photoOutput = AVCapturePhotoOutput()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let videoQueue = DispatchQueue(label: "camera.video.queue")
+    private let sessionQueue = DispatchQueue(label: "camera.session.queue")
     private var photoCompletion: ((UIImage) -> Void)?
 
     var onFrame: ((CVPixelBuffer, CMTime) -> Void)?
     
     @Published var isSessionRunning = false
+    @Published private(set) var isTorchOn = false
     
     override init() {
         super.init()
@@ -19,6 +21,11 @@ class CameraManager: NSObject, ObservableObject {
     
     var sessionProxy: AVCaptureSession {
         return session
+    }
+
+    var hasTorch: Bool {
+        guard let device = currentVideoDevice() else { return false }
+        return device.position == .back && device.hasTorch
     }
     
     private func setupCamera() {
@@ -89,6 +96,7 @@ class CameraManager: NSObject, ObservableObject {
     
     func switchCamera() {
         guard let currentInput = session.inputs.first as? AVCaptureDeviceInput else { return }
+        setTorchEnabled(false)
         
         session.beginConfiguration()
         session.removeInput(currentInput)
@@ -106,6 +114,54 @@ class CameraManager: NSObject, ObservableObject {
         }
         
         session.commitConfiguration()
+        DispatchQueue.main.async { [weak self] in
+            self?.isTorchOn = false
+        }
+    }
+
+    func toggleTorch() {
+        setTorchEnabled(!isTorchOn)
+    }
+
+    func setTorchEnabled(_ enabled: Bool) {
+        sessionQueue.async { [weak self] in
+            guard let self = self,
+                  let device = self.currentVideoDevice(),
+                  device.position == .back,
+                  device.hasTorch else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.isTorchOn = false
+                }
+                return
+            }
+
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                if enabled, device.isTorchModeSupported(.on) {
+                    try device.setTorchModeOn(level: AVCaptureDevice.maxAvailableTorchLevel)
+                    DispatchQueue.main.async { [weak self] in
+                        self?.isTorchOn = true
+                    }
+                } else {
+                    device.torchMode = .off
+                    DispatchQueue.main.async { [weak self] in
+                        self?.isTorchOn = false
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async { [weak self] in
+                    self?.isTorchOn = false
+                }
+            }
+        }
+    }
+
+    private func currentVideoDevice() -> AVCaptureDevice? {
+        session.inputs
+            .compactMap { $0 as? AVCaptureDeviceInput }
+            .first?
+            .device
     }
 }
 

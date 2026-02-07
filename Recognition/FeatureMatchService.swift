@@ -3,6 +3,8 @@ import Vision
 import UIKit
 
 class FeatureMatchService {
+    private static let minDecisiveConfidence = 0.62
+
     struct DescriptorCalibration {
         let minGap: Float
         let minScore: Float
@@ -144,18 +146,39 @@ class FeatureMatchService {
     ) async -> (side: CoinSide, confidence: Double) {
         var bestResult: (CoinSide, Double) = (.invalid, 0.0)
         var bestRank = 2
+        var candidateResults: [(CoinSide, Double)] = []
 
         for candidate in candidates {
-            let result: (CoinSide, Double)
-            if !frontDescriptors.isEmpty && !backDescriptors.isEmpty {
-                result = matchCoinByDescriptor(
+            let merged: (CoinSide, Double)
+            let hasDescriptors = !frontDescriptors.isEmpty && !backDescriptors.isEmpty
+            let hasFeatureTemplates = !frontTemplates.isEmpty && !backTemplates.isEmpty
+
+            if hasDescriptors && hasFeatureTemplates {
+                let descriptorResult = matchCoinByDescriptor(
+                    image: candidate,
+                    frontDescriptors: frontDescriptors,
+                    backDescriptors: backDescriptors,
+                    calibration: descriptorCalibration
+                )
+                let featureResult = await matchCoin(
+                    image: candidate,
+                    frontTemplates: frontTemplates,
+                    backTemplates: backTemplates,
+                    calibration: calibration
+                )
+                merged = mergeDescriptorAndFeatureResult(
+                    descriptorResult,
+                    featureResult
+                )
+            } else if hasDescriptors {
+                merged = matchCoinByDescriptor(
                     image: candidate,
                     frontDescriptors: frontDescriptors,
                     backDescriptors: backDescriptors,
                     calibration: descriptorCalibration
                 )
             } else {
-                result = await matchCoin(
+                merged = await matchCoin(
                     image: candidate,
                     frontTemplates: frontTemplates,
                     backTemplates: backTemplates,
@@ -163,10 +186,36 @@ class FeatureMatchService {
                 )
             }
 
-            let rank = confidenceRank(for: result.0)
-            if rank < bestRank || (rank == bestRank && result.1 > bestResult.1) {
+            let adjusted = reliabilityAdjusted(
+                merged,
+                minConfidence: minDecisiveConfidence
+            )
+            candidateResults.append(adjusted)
+
+            let rank = confidenceRank(for: adjusted.0)
+            if rank < bestRank || (rank == bestRank && adjusted.1 > bestResult.1) {
                 bestRank = rank
-                bestResult = result
+                bestResult = adjusted
+            }
+        }
+
+        if !candidateResults.isEmpty {
+            let frontEvidence = candidateResults
+                .filter { $0.0 == .front }
+                .reduce(0.0) { $0 + normalizedConfidence($1.1) }
+            let backEvidence = candidateResults
+                .filter { $0.0 == .back }
+                .reduce(0.0) { $0 + normalizedConfidence($1.1) }
+            let frontCount = candidateResults.filter { $0.0 == .front }.count
+            let backCount = candidateResults.filter { $0.0 == .back }.count
+            let consensus = resolveCandidateEvidence(
+                frontEvidence: frontEvidence,
+                backEvidence: backEvidence,
+                frontCount: frontCount,
+                backCount: backCount
+            )
+            if consensus.0 == .front || consensus.0 == .back {
+                return consensus
             }
         }
 
@@ -174,7 +223,7 @@ class FeatureMatchService {
     }
 
     private static func debugLog(_ message: String) {
-        #if DEBUG
+        #if DEBUG                                                   
         print("FeatureMatch: \(message)")
         #endif
     }
@@ -266,18 +315,11 @@ class FeatureMatchService {
                 continue
             }
 
-            let gap = abs(frontScore - backScore)
-            let best = max(frontScore, backScore)
-            guard best.isFinite else { continue }
-
-            let result: (CoinSide, Double)
-            if gap < calibration.minGap || best < calibration.minScore {
-                result = (.uncertain, Double(best))
-            } else {
-                result = frontScore >= backScore
-                    ? (.front, Double(best))
-                    : (.back, Double(best))
-            }
+            let result = classifyDescriptorScores(
+                frontScore: frontScore,
+                backScore: backScore,
+                calibration: calibration
+            )
 
             let rank = confidenceRank(for: result.0)
             if rank < bestRank || (rank == bestRank && result.1 > bestResult.1) {
@@ -287,6 +329,127 @@ class FeatureMatchService {
         }
 
         return bestResult
+    }
+
+    static func classifyDescriptorScores(
+        frontScore: Float,
+        backScore: Float,
+        calibration: DescriptorCalibration
+    ) -> (CoinSide, Double) {
+        let gap = abs(frontScore - backScore)
+        let best = max(frontScore, backScore)
+        guard best.isFinite else { return (.invalid, 0.0) }
+
+        let isStrongScore = best >= (calibration.minScore + 0.10)
+        let hasStrongGap = gap >= calibration.minGap
+        let hasRelaxedGap = gap >= (calibration.minGap * 0.70)
+
+        if hasStrongGap || (isStrongScore && hasRelaxedGap) {
+            let side: CoinSide = frontScore >= backScore ? .front : .back
+            return (side, Double(best))
+        }
+
+        if best < (calibration.minScore - 0.08) {
+            return (.invalid, Double(best))
+        }
+
+        return (.uncertain, Double(best))
+    }
+
+    static func resolveCandidateEvidence(
+        frontEvidence: Double,
+        backEvidence: Double,
+        frontCount: Int,
+        backCount: Int
+    ) -> (CoinSide, Double) {
+        let totalEvidence = frontEvidence + backEvidence
+        guard totalEvidence > 0 else { return (.invalid, 0.0) }
+
+        let dominantSide: CoinSide = frontEvidence >= backEvidence ? .front : .back
+        let dominantEvidence = max(frontEvidence, backEvidence)
+        let confidence = dominantEvidence / totalEvidence
+        let margin = abs(frontEvidence - backEvidence) / totalEvidence
+        let supportCount = max(frontCount, backCount)
+
+        if margin < 0.12 || supportCount < 2 {
+            return (.uncertain, confidence)
+        }
+        return (dominantSide, confidence)
+    }
+
+    private static func preferredResult(
+        _ lhs: (CoinSide, Double),
+        _ rhs: (CoinSide, Double)
+    ) -> (CoinSide, Double) {
+        let lhsRank = confidenceRank(for: lhs.0)
+        let rhsRank = confidenceRank(for: rhs.0)
+        if rhsRank < lhsRank {
+            return rhs
+        }
+        if lhsRank < rhsRank {
+            return lhs
+        }
+        return rhs.1 > lhs.1 ? rhs : lhs
+    }
+
+    private static func mergeDescriptorAndFeatureResult(
+        _ descriptorResult: (CoinSide, Double),
+        _ featureResult: (CoinSide, Double)
+    ) -> (CoinSide, Double) {
+        let descriptorDecisive = isDecisive(descriptorResult.0)
+        let featureDecisive = isDecisive(featureResult.0)
+        let descriptorConfidence = normalizedConfidence(descriptorResult.1)
+        let featureConfidence = normalizedConfidence(featureResult.1)
+
+        if descriptorDecisive && featureDecisive {
+            if descriptorResult.0 == featureResult.0 {
+                return (
+                    descriptorResult.0,
+                    (descriptorConfidence + featureConfidence) / 2
+                )
+            }
+            if featureConfidence - descriptorConfidence >= 0.10 {
+                return (featureResult.0, featureConfidence)
+            }
+            if descriptorConfidence - featureConfidence >= 0.14 {
+                return (descriptorResult.0, descriptorConfidence)
+            }
+            return (.uncertain, max(descriptorConfidence, featureConfidence))
+        }
+
+        if descriptorDecisive {
+            return descriptorConfidence >= 0.82
+                ? descriptorResult
+                : (.uncertain, descriptorConfidence)
+        }
+
+        if featureDecisive {
+            return featureResult
+        }
+
+        return preferredResult(descriptorResult, featureResult)
+    }
+
+    private static func reliabilityAdjusted(
+        _ result: (CoinSide, Double),
+        minConfidence: Double
+    ) -> (CoinSide, Double) {
+        guard isDecisive(result.0) else {
+            return (result.0, normalizedConfidence(result.1))
+        }
+        let confidence = normalizedConfidence(result.1)
+        guard confidence >= minConfidence else {
+            return (.uncertain, confidence)
+        }
+        return (result.0, confidence)
+    }
+
+    private static func isDecisive(_ side: CoinSide) -> Bool {
+        side == .front || side == .back
+    }
+
+    private static func normalizedConfidence(_ value: Double) -> Double {
+        min(max(value, 0), 1)
     }
 
     private static func bestSimilarity(

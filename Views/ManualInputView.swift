@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ManualInputView: View {
+    @EnvironmentObject var dataStorage: DataStorageManager
     @Environment(\.dismiss) private var dismiss
     @State private var yaos: [YinYang] = [.yang, .yang, .yang, .yang, .yang, .yang]
     @State private var showingResult = false
@@ -54,6 +55,7 @@ struct ManualInputView: View {
 
                 // 查看结果按钮
                 Button(action: {
+                    saveManualSession()
                     showingResult = true
                 }) {
                     HStack(spacing: 6) {
@@ -86,6 +88,23 @@ struct ManualInputView: View {
         .navigationDestination(isPresented: $showingResult) {
             ResultView(yaos: yaos)
         }
+    }
+
+    private func saveManualSession() {
+        let results = yaos.enumerated().map { index, yinYang in
+            CoinResult(
+                position: index + 1,
+                yinYang: yinYang,
+                side: yinYang == .yin ? .front : .back,
+                confidence: 1.0
+            )
+        }
+
+        let _ = dataStorage.createSession(
+            source: .manual,
+            profileId: dataStorage.activeProfile?.id,
+            results: results
+        )
     }
 }
 
@@ -192,6 +211,11 @@ struct YaoSymbol: View {
     }
 }
 
-#Preview {
-    ManualInputView()
+#if DEBUG
+struct ManualInputView_Previews: PreviewProvider {
+    static var previews: some View {
+        ManualInputView()
+            .environmentObject(DataStorageManager.shared)
+    }
 }
+#endif

@@ -4,6 +4,10 @@
 
 这是一个基于模板匹配算法的中国传统金钱卦识别iOS应用，使用SwiftUI、Vision Framework和SwiftData构建。
 
+## 最新进度
+
+- 会话接力文档：`PROJECT_PROGRESS.md`（建议新开对话时优先提供）
+
 ## 技术架构
 
 ### 核心技术栈

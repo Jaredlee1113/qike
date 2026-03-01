@@ -46,8 +46,24 @@ class ConfidenceCalculator {
         }
         
         guard minDistance <= calibration.maxMatchDistance else {
-            debugLog("invalid match minDistance=\(minDistance) gap=\(distanceGap)")
-            return (.invalid, 0.0)
+            let maxDistance = max(calibration.maxMatchDistance, 0.001)
+            let overflowRatio = max(Double((minDistance - maxDistance) / maxDistance), 0)
+            let decisiveGap = max(calibration.minDistanceGap * 1.2, 0.03)
+
+            if overflowRatio <= 0.18, distanceGap >= decisiveGap {
+                let side: CoinSide = frontDistance <= backDistance ? .front : .back
+                let confidence = max(0.56, 0.64 - min(overflowRatio * 0.22, 0.08))
+                debugLog(
+                    "distance overrun accepted minDistance=\(minDistance) limit=\(calibration.maxMatchDistance) gap=\(distanceGap)"
+                )
+                return (side, confidence)
+            }
+
+            let confidence = max(0.16, 0.52 - min(overflowRatio * 0.35, 0.36))
+            debugLog(
+                "distance overrun minDistance=\(minDistance) limit=\(calibration.maxMatchDistance) gap=\(distanceGap)"
+            )
+            return (.uncertain, confidence)
         }
         
         let frontConfidence = 1.0 - Double(frontDistance / totalDistance)
@@ -87,8 +103,9 @@ class ConfidenceCalculator {
         }
 
         let separation = max(interMedian - intraMedian, 0.01)
-        let gap = max(0.01, separation * 0.25)
-        let maxDistance = max(interMedian * 1.2, intraMedian * 1.6)
+        let gap = min(max(0.008, separation * 0.22), 0.045)
+        let dynamicDistance = max(interMedian * 1.2, intraMedian * 1.6)
+        let maxDistance = min(max(dynamicDistance, 1.10), 1.45)
 
         return Calibration(
             maxMatchDistance: maxDistance,

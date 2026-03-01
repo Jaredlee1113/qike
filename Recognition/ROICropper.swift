@@ -57,7 +57,76 @@ class ROICropper {
         }
     }
 
-    private static func mapViewRectToImageRect(
+    static func drafts(from detections: [CoinDetector.DetectedCoin]) -> [DetectionDraft] {
+        detections.map { detection in
+            DetectionDraft(
+                centerNormalized: CGPoint(
+                    x: detection.normalizedRect.midX,
+                    y: detection.normalizedRect.midY
+                ),
+                sizeNormalized: detection.normalizedRect.size,
+                positionHint: detection.position
+            )
+        }
+    }
+
+    static func defaultDrafts(in imageSize: CGSize) -> [DetectionDraft] {
+        let slots = SlotLayout.slotsNormalized(in: imageSize)
+        return slots.map { slot in
+            DetectionDraft(
+                centerNormalized: CGPoint(
+                    x: slot.rect.midX / max(imageSize.width, 1),
+                    y: slot.rect.midY / max(imageSize.height, 1)
+                ),
+                sizeNormalized: CGSize(
+                    width: slot.rect.width / max(imageSize.width, 1),
+                    height: slot.rect.height / max(imageSize.height, 1)
+                ),
+                positionHint: slot.position
+            )
+        }
+    }
+
+    static func detections(
+        from drafts: [DetectionDraft],
+        image: UIImage
+    ) -> [CoinDetector.DetectedCoin] {
+        guard let cgImage = image.cgImage else { return [] }
+        let imageSize = CGSize(width: cgImage.width, height: cgImage.height)
+        let bounds = CGRect(origin: .zero, size: imageSize)
+
+        let mapped = drafts.compactMap { draft -> (CGRect, UIImage, UIImage?)? in
+            let rect = rectForDraft(draft, imageSize: imageSize).integral.intersection(bounds)
+            guard rect.width > 0, rect.height > 0,
+                  let cropped = cgImage.cropping(to: rect) else {
+                return nil
+            }
+            let image = UIImage(cgImage: cropped)
+            let masked = ImageProcessor.applyCircularMask(image)
+            return (rect, image, masked)
+        }
+
+        let sorted = Array(mapped.sorted { $0.0.midY < $1.0.midY }.prefix(6))
+        return sorted.enumerated().map { index, item in
+            let position = 6 - index
+            let rect = item.0
+            let normalizedRect = CGRect(
+                x: rect.origin.x / imageSize.width,
+                y: rect.origin.y / imageSize.height,
+                width: rect.size.width / imageSize.width,
+                height: rect.size.height / imageSize.height
+            )
+            return CoinDetector.DetectedCoin(
+                image: item.1,
+                maskedImage: item.2,
+                position: position,
+                rect: rect,
+                normalizedRect: normalizedRect
+            )
+        }
+    }
+
+    static func mapViewRectToImageRect(
         _ viewRect: CGRect,
         viewSize: CGSize,
         imageSize: CGSize
@@ -156,5 +225,27 @@ class ROICropper {
                 normalizedRect: normalizedRect
             )
         }
+    }
+
+    private static func rectForDraft(
+        _ draft: DetectionDraft,
+        imageSize: CGSize
+    ) -> CGRect {
+        let normalizedWidth = min(max(draft.sizeNormalized.width, 0.06), 0.6)
+        let normalizedHeight = min(max(draft.sizeNormalized.height, 0.06), 0.6)
+        let width = normalizedWidth * imageSize.width
+        let height = normalizedHeight * imageSize.height
+
+        var centerX = min(max(draft.centerNormalized.x, 0), 1) * imageSize.width
+        var centerY = min(max(draft.centerNormalized.y, 0), 1) * imageSize.height
+        centerX = min(max(centerX, width / 2), imageSize.width - width / 2)
+        centerY = min(max(centerY, height / 2), imageSize.height - height / 2)
+
+        return CGRect(
+            x: centerX - width / 2,
+            y: centerY - height / 2,
+            width: width,
+            height: height
+        )
     }
 }

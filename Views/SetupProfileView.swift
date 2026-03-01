@@ -202,8 +202,16 @@ struct SetupProfileView: View {
         let backPreviewImages = backImages.compactMap(encodePreviewImageData)
 
         Task.detached(priority: .userInitiated) {
-            let frontTemplateData = await TemplateManager.createTemplates(from: frontImages)
-            let backTemplateData = await TemplateManager.createTemplates(from: backImages)
+            let frontTemplateData = await TemplateManager.createTemplates(
+                from: frontImages,
+                includeFeaturePrints: true,
+                useCoinDetection: true
+            )
+            let backTemplateData = await TemplateManager.createTemplates(
+                from: backImages,
+                includeFeaturePrints: true,
+                useCoinDetection: true
+            )
             let hasFrontTemplate = !frontTemplateData.descriptors.isEmpty || !frontTemplateData.featurePrints.isEmpty
             let hasBackTemplate = !backTemplateData.descriptors.isEmpty || !backTemplateData.featurePrints.isEmpty
 

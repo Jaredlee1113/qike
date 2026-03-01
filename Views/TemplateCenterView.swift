@@ -9,8 +9,13 @@ struct TemplateCenterView: View {
     @State private var renameText = ""
     @State private var profileToRename: CoinProfile?
     @State private var profileToDelete: CoinProfile?
+    @State private var profileToReset: CoinProfile?
     @State private var profileToPreview: CoinProfile?
     @State private var showingDeleteConfirmation = false
+    @State private var showingResetConfirmation = false
+    @State private var isResettingProfileId: UUID?
+    @State private var resetAlertMessage: String?
+    @State private var showingResetAlert = false
 
     private var sortedProfiles: [CoinProfile] {
         dataStorage.profiles.sorted { $0.createdDate > $1.createdDate }
@@ -57,6 +62,12 @@ struct TemplateCenterView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
 
+                            if isResettingProfileId == profile.id {
+                                Text("重置中…")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                            }
+
                             Spacer()
 
                             if profile.id != dataStorage.activeProfileId {
@@ -91,6 +102,12 @@ struct TemplateCenterView: View {
                         dataStorage.setActiveProfile(profile.id)
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button("清空增量") {
+                            profileToReset = profile
+                            showingResetConfirmation = true
+                        }
+                        .tint(.orange)
+
                         Button("重命名") {
                             profileToRename = profile
                             renameText = profile.name
@@ -103,6 +120,7 @@ struct TemplateCenterView: View {
                             showingDeleteConfirmation = true
                         }
                     }
+                    .disabled(isResettingProfileId != nil)
                 }
             }
         }
@@ -157,6 +175,39 @@ struct TemplateCenterView: View {
             Button("取消", role: .cancel) {
                 profileToDelete = nil
             }
+        }
+        .confirmationDialog(
+            "将清空该模板的增量学习样本，仅保留初始模板。是否继续？",
+            isPresented: $showingResetConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("清空增量样本", role: .destructive) {
+                guard let profile = profileToReset else { return }
+                isResettingProfileId = profile.id
+                Task {
+                    let success = await dataStorage.resetLearnedSamples(for: profile.id)
+                    await MainActor.run {
+                        isResettingProfileId = nil
+                        if success {
+                            resetAlertMessage = "已清空增量样本，模板已恢复为初始版本。"
+                        } else {
+                            resetAlertMessage = "清空失败：缺少可重建的模板数据，请重新录入模板。"
+                        }
+                        showingResetAlert = true
+                    }
+                }
+                profileToReset = nil
+            }
+            Button("取消", role: .cancel) {
+                profileToReset = nil
+            }
+        }
+        .alert("重置模板", isPresented: $showingResetAlert) {
+            Button("确定", role: .cancel) {
+                resetAlertMessage = nil
+            }
+        } message: {
+            Text(resetAlertMessage ?? "")
         }
     }
 

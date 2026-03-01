@@ -17,9 +17,16 @@ class CoinDetector {
         let normalizedRect: CGRect
     }
 
-    static func detectCoins(from image: UIImage) async -> [DetectedCoin] {
+    static func detectCoins(
+        from image: UIImage,
+        focusRegionNormalized: CGRect? = nil
+    ) async -> [DetectedCoin] {
         guard let baseCGImage = image.cgImage else { return [] }
         let imageSize = CGSize(width: baseCGImage.width, height: baseCGImage.height)
+        let focusRegionImageRect = normalizedRectToImageRect(
+            focusRegionNormalized,
+            imageSize: imageSize
+        )
 
         var holeCandidatePool: [Candidate] = []
 
@@ -59,10 +66,20 @@ class CoinDetector {
         debugLog("outer candidates: \(outerCandidates.count)")
 
         let allCandidates = dedupeCandidates(holeCandidates + outerCandidates)
-        let filteredCandidates = filterCandidatesForColumn(allCandidates)
+        let guideFilteredCandidates = filterCandidatesByFocusRegion(
+            allCandidates,
+            focusRegionImageRect: focusRegionImageRect
+        )
+        let filteredCandidates = filterCandidatesForColumn(
+            guideFilteredCandidates,
+            preferredColumn: focusRegionImageRect
+        )
         debugLog("total candidates: \(allCandidates.count)")
-        if filteredCandidates.count != allCandidates.count {
-            debugLog("filtered candidates: \(filteredCandidates.count)")
+        if guideFilteredCandidates.count != allCandidates.count {
+            debugLog("focus filtered candidates: \(guideFilteredCandidates.count)")
+        }
+        if filteredCandidates.count != guideFilteredCandidates.count {
+            debugLog("column filtered candidates: \(filteredCandidates.count)")
         }
 
         guard filteredCandidates.count >= 6 else {
@@ -544,7 +561,10 @@ class CoinDetector {
         }
     }
 
-    private static func filterCandidatesForColumn(_ candidates: [Candidate]) -> [Candidate] {
+    private static func filterCandidatesForColumn(
+        _ candidates: [Candidate],
+        preferredColumn: CGRect?
+    ) -> [Candidate] {
         guard candidates.count > 6 else { return candidates }
 
         let sizes = candidates.map { min($0.rect.width, $0.rect.height) }
@@ -552,10 +572,12 @@ class CoinDetector {
         guard medianSize > 0 else { return candidates }
 
         let xs = candidates.map { $0.rect.midX }
-        let medianX = median(xs)
+        let medianX = preferredColumn?.midX ?? median(xs)
         let sizeLower = medianSize * 0.7
         let sizeUpper = medianSize * 1.4
-        let xTolerance = medianSize * 0.6
+        let baseTolerance = medianSize * 0.6
+        let guideTolerance = preferredColumn.map { max(baseTolerance, $0.width * 0.6) } ?? baseTolerance
+        let xTolerance = guideTolerance
 
         let filtered = candidates.filter { candidate in
             let size = min(candidate.rect.width, candidate.rect.height)
@@ -564,6 +586,53 @@ class CoinDetector {
         }
 
         return filtered.count >= 6 ? filtered : candidates
+    }
+
+    private static func filterCandidatesByFocusRegion(
+        _ candidates: [Candidate],
+        focusRegionImageRect: CGRect?
+    ) -> [Candidate] {
+        guard let focusRegionImageRect else { return candidates }
+        guard !candidates.isEmpty else { return candidates }
+
+        let sizes = candidates.map { min($0.rect.width, $0.rect.height) }
+        let medianSize = median(sizes)
+        guard medianSize > 0 else { return candidates }
+
+        let expanded = focusRegionImageRect.insetBy(
+            dx: -(medianSize * 0.85),
+            dy: -(medianSize * 0.45)
+        )
+
+        let filtered = candidates.filter { candidate in
+            let center = CGPoint(x: candidate.rect.midX, y: candidate.rect.midY)
+            return expanded.contains(center)
+        }
+
+        if filtered.count >= 4 {
+            return filtered
+        }
+        return candidates
+    }
+
+    private static func normalizedRectToImageRect(
+        _ normalizedRect: CGRect?,
+        imageSize: CGSize
+    ) -> CGRect? {
+        guard let normalizedRect else { return nil }
+        let clamped = CGRect(
+            x: min(max(normalizedRect.origin.x, 0), 1),
+            y: min(max(normalizedRect.origin.y, 0), 1),
+            width: min(max(normalizedRect.width, 0), 1),
+            height: min(max(normalizedRect.height, 0), 1)
+        ).intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+        guard clamped.width > 0, clamped.height > 0 else { return nil }
+        return CGRect(
+            x: clamped.origin.x * imageSize.width,
+            y: clamped.origin.y * imageSize.height,
+            width: clamped.width * imageSize.width,
+            height: clamped.height * imageSize.height
+        )
     }
 
     private static func median(_ values: [CGFloat]) -> CGFloat {

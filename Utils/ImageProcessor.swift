@@ -475,4 +475,219 @@ class ImageProcessor {
             UIImage(cgImage: cgImage, scale: image.scale, orientation: .left)
         ]
     }
+
+    static func polarUnwrappedRingImage(
+        for image: UIImage,
+        innerRadiusRatio: CGFloat = 0.20,
+        outerRadiusRatio: CGFloat = 0.48,
+        angularSamples: Int = 180,
+        radialSamples: Int = 36
+    ) -> UIImage? {
+        guard let result = polarUnwrapGrayscale(
+            for: image,
+            innerRadiusRatio: innerRadiusRatio,
+            outerRadiusRatio: outerRadiusRatio,
+            angularSamples: angularSamples,
+            radialSamples: radialSamples
+        ) else {
+            return nil
+        }
+        return grayscaleImage(
+            from: result.pixels,
+            width: result.width,
+            height: result.height
+        )
+    }
+
+    static func coinRingDescriptor(
+        for image: UIImage,
+        angularSamples: Int = 180,
+        radialSamples: Int = 36
+    ) -> [Float]? {
+        guard let unwrap = polarUnwrapGrayscale(
+            for: image,
+            innerRadiusRatio: 0.20,
+            outerRadiusRatio: 0.48,
+            angularSamples: angularSamples,
+            radialSamples: radialSamples
+        ) else {
+            return nil
+        }
+
+        let width = unwrap.width
+        let height = unwrap.height
+        guard width > 8, height > 8 else { return nil }
+
+        var edgeProfile = [Float](repeating: 0, count: width)
+        var intensityProfile = [Float](repeating: 0, count: width)
+
+        for x in 0..<width {
+            let prevX = (x - 1 + width) % width
+            let nextX = (x + 1) % width
+            var edgeSum: Float = 0
+            var intensitySum: Float = 0
+
+            for y in 0..<height {
+                let idx = y * width + x
+                intensitySum += unwrap.pixels[idx]
+
+                let left = unwrap.pixels[y * width + prevX]
+                let right = unwrap.pixels[y * width + nextX]
+                edgeSum += abs(right - left)
+            }
+
+            intensityProfile[x] = intensitySum / Float(height)
+            edgeProfile[x] = edgeSum / Float(height)
+        }
+
+        let normalizedEdge = normalizedProfile(edgeProfile)
+        let normalizedIntensity = normalizedProfile(intensityProfile)
+        guard !normalizedEdge.isEmpty, !normalizedIntensity.isEmpty else { return nil }
+        return normalizedEdge + normalizedIntensity
+    }
+
+    private static func polarUnwrapGrayscale(
+        for image: UIImage,
+        innerRadiusRatio: CGFloat,
+        outerRadiusRatio: CGFloat,
+        angularSamples: Int,
+        radialSamples: Int
+    ) -> (pixels: [Float], width: Int, height: Int)? {
+        guard angularSamples > 16, radialSamples > 8 else { return nil }
+
+        let normalized = normalizeOrientation(image)
+        let squared = centerCropToSquare(normalized)
+        let resized = resizeImage(squared, targetSize: CGSize(width: 256, height: 256))
+        guard let cgImage = resized.cgImage else { return nil }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        guard width > 8, height > 8 else { return nil }
+
+        let bytesPerRow = width
+        var gray = [UInt8](repeating: 0, count: width * height)
+        guard let context = CGContext(
+            data: &gray,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else {
+            return nil
+        }
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        let cx = CGFloat(width - 1) / 2
+        let cy = CGFloat(height - 1) / 2
+        let maxRadius = min(cx, cy)
+
+        let clampedInner = min(max(innerRadiusRatio, 0.05), 0.75)
+        let clampedOuter = min(max(outerRadiusRatio, clampedInner + 0.08), 0.98)
+        let innerRadius = maxRadius * clampedInner
+        let outerRadius = maxRadius * clampedOuter
+        let radiusDelta = max(outerRadius - innerRadius, 1)
+
+        var unwrapped = [Float](repeating: 0, count: angularSamples * radialSamples)
+        let twoPi = CGFloat.pi * 2
+
+        for y in 0..<radialSamples {
+            let t = (CGFloat(y) + 0.5) / CGFloat(radialSamples)
+            let radius = innerRadius + (radiusDelta * t)
+
+            for x in 0..<angularSamples {
+                let theta = twoPi * (CGFloat(x) / CGFloat(angularSamples))
+                let sx = cx + radius * cos(theta)
+                let sy = cy + radius * sin(theta)
+                unwrapped[y * angularSamples + x] = bilinearSample(
+                    gray,
+                    width: width,
+                    height: height,
+                    x: sx,
+                    y: sy
+                ) / 255.0
+            }
+        }
+
+        return (unwrapped, angularSamples, radialSamples)
+    }
+
+    private static func bilinearSample(
+        _ pixels: [UInt8],
+        width: Int,
+        height: Int,
+        x: CGFloat,
+        y: CGFloat
+    ) -> Float {
+        let clampedX = min(max(x, 0), CGFloat(width - 1))
+        let clampedY = min(max(y, 0), CGFloat(height - 1))
+
+        let x0 = Int(floor(clampedX))
+        let y0 = Int(floor(clampedY))
+        let x1 = min(x0 + 1, width - 1)
+        let y1 = min(y0 + 1, height - 1)
+
+        let dx = Float(clampedX - CGFloat(x0))
+        let dy = Float(clampedY - CGFloat(y0))
+
+        let p00 = Float(pixels[y0 * width + x0])
+        let p10 = Float(pixels[y0 * width + x1])
+        let p01 = Float(pixels[y1 * width + x0])
+        let p11 = Float(pixels[y1 * width + x1])
+
+        let top = p00 * (1 - dx) + p10 * dx
+        let bottom = p01 * (1 - dx) + p11 * dx
+        return top * (1 - dy) + bottom * dy
+    }
+
+    private static func normalizedProfile(_ values: [Float]) -> [Float] {
+        guard !values.isEmpty else { return [] }
+        let mean = values.reduce(0, +) / Float(values.count)
+        var centered = values.map { $0 - mean }
+
+        var norm: Float = 0
+        for value in centered {
+            norm += value * value
+        }
+        norm = sqrt(max(norm, 1e-6))
+        guard norm > 0 else { return [] }
+
+        for index in centered.indices {
+            centered[index] /= norm
+        }
+        return centered
+    }
+
+    private static func grayscaleImage(
+        from normalizedPixels: [Float],
+        width: Int,
+        height: Int
+    ) -> UIImage? {
+        guard width > 0, height > 0, normalizedPixels.count == width * height else { return nil }
+        let bytes = normalizedPixels.map { value -> UInt8 in
+            let clamped = min(max(value, 0), 1)
+            return UInt8(clamped * 255)
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceGray()
+        guard let provider = CGDataProvider(data: Data(bytes) as CFData),
+              let cgImage = CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bitsPerPixel: 8,
+                bytesPerRow: width,
+                space: colorSpace,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: false,
+                intent: .defaultIntent
+              ) else {
+            return nil
+        }
+
+        return UIImage(cgImage: cgImage)
+    }
 }

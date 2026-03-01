@@ -8,6 +8,7 @@ class CameraManager: NSObject, ObservableObject {
     private let videoQueue = DispatchQueue(label: "camera.video.queue")
     private let sessionQueue = DispatchQueue(label: "camera.session.queue")
     private var photoCompletion: ((UIImage) -> Void)?
+    private var photoResultCompletion: ((UIImage?) -> Void)?
 
     var onFrame: ((CVPixelBuffer, CMTime) -> Void)?
     
@@ -87,6 +88,17 @@ class CameraManager: NSObject, ObservableObject {
     
     func capturePhoto(completion: @escaping (UIImage) -> Void) {
         photoCompletion = completion
+        photoResultCompletion = nil
+        
+        let settings = AVCapturePhotoSettings()
+        // Remove formatType setting as it's not available in modern AVFoundation
+        
+        photoOutput.capturePhoto(with: settings, delegate: self)
+    }
+
+    func capturePhotoWithResult(completion: @escaping (UIImage?) -> Void) {
+        photoCompletion = nil
+        photoResultCompletion = completion
         
         let settings = AVCapturePhotoSettings()
         // Remove formatType setting as it's not available in modern AVFoundation
@@ -169,17 +181,30 @@ extension CameraManager: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
             print("Photo capture error: \(error.localizedDescription)")
+            DispatchQueue.main.async { [weak self] in
+                self?.photoResultCompletion?(nil)
+                self?.photoCompletion = nil
+                self?.photoResultCompletion = nil
+            }
             return
         }
         
         guard let data = photo.fileDataRepresentation(),
               let image = UIImage(data: data) else {
             print("Failed to process photo data")
+            DispatchQueue.main.async { [weak self] in
+                self?.photoResultCompletion?(nil)
+                self?.photoCompletion = nil
+                self?.photoResultCompletion = nil
+            }
             return
         }
         
         DispatchQueue.main.async { [weak self] in
             self?.photoCompletion?(image)
+            self?.photoResultCompletion?(image)
+            self?.photoCompletion = nil
+            self?.photoResultCompletion = nil
         }
     }
 }

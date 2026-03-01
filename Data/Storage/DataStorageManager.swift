@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit
 
 @MainActor
 class DataStorageManager: ObservableObject {
@@ -116,6 +117,52 @@ class DataStorageManager: ObservableObject {
         guard let index = profiles.firstIndex(where: { $0.id == id }) else { return }
         profiles[index].name = trimmedName
         saveProfiles()
+    }
+
+    func resetLearnedSamples(for profileId: UUID) async -> Bool {
+        guard let index = profiles.firstIndex(where: { $0.id == profileId }) else { return false }
+        var profile = profiles[index]
+
+        let frontImages = profile.frontPreviewImages.compactMap { UIImage(data: $0) }
+        let backImages = profile.backPreviewImages.compactMap { UIImage(data: $0) }
+
+        if !frontImages.isEmpty && !backImages.isEmpty {
+            let frontTemplateData = await TemplateManager.createTemplates(
+                from: frontImages,
+                includeFeaturePrints: true,
+                useCoinDetection: true
+            )
+            let backTemplateData = await TemplateManager.createTemplates(
+                from: backImages,
+                includeFeaturePrints: true,
+                useCoinDetection: true
+            )
+
+            guard let frontEncoded = TemplateManager.serializeTemplateData(frontTemplateData),
+                  let backEncoded = TemplateManager.serializeTemplateData(backTemplateData) else {
+                return false
+            }
+
+            profile.frontTemplates = frontEncoded
+            profile.backTemplates = backEncoded
+            profile.baseFrontTemplates = frontEncoded
+            profile.baseBackTemplates = backEncoded
+            profiles[index] = profile
+            saveProfiles()
+            ensureActiveProfileSelection()
+            return true
+        }
+
+        guard !profile.baseFrontTemplates.isEmpty, !profile.baseBackTemplates.isEmpty else {
+            return false
+        }
+
+        profile.frontTemplates = profile.baseFrontTemplates
+        profile.backTemplates = profile.baseBackTemplates
+        profiles[index] = profile
+        saveProfiles()
+        ensureActiveProfileSelection()
+        return true
     }
     
     // MARK: - Session Management

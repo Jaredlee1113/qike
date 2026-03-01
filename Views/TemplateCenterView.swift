@@ -33,63 +33,82 @@ struct TemplateCenterView: View {
                 .padding(.vertical, 40)
             } else {
                 ForEach(sortedProfiles) { profile in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Text(profile.name)
-                                .font(.headline)
+                    Button {
+                        profileToPreview = profile
+                    } label: {
+                        HStack(spacing: 12) {
+                            // Thumbnail preview
+                            ZStack {
+                                if let firstImage = getFirstPreviewImage(profile: profile) {
+                                    Image(uiImage: firstImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 60, height: 60)
+                                        .clipped()
+                                        .cornerRadius(8)
+                                } else {
+                                    Image(systemName: "photo")
+                                        .font(.title2)
+                                        .foregroundColor(.secondary)
+                                        .frame(width: 60, height: 60)
+                                        .background(Color(.secondarySystemBackground))
+                                        .cornerRadius(8)
+                                }
+                            }
 
-                            if profile.id == dataStorage.activeProfileId {
-                                Text("当前")
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.blue)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.blue.opacity(0.1))
-                                    .cornerRadius(8)
+                            // Info section
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    Text(profile.name)
+                                        .font(.headline)
+                                        .foregroundColor(.primary)
+
+                                    if profile.id == dataStorage.activeProfileId {
+                                        Text("当前")
+                                            .font(.caption2)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.blue)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color.blue.opacity(0.15))
+                                            .cornerRadius(6)
+                                    }
+                                }
+
+                                Text("创建于 \(formatDate(profile.createdDate))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                HStack(spacing: 4) {
+                                    Label("\(getPreviewImageCount(profile: profile))张", systemImage: "photo.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+
+                                    if profile.id == dataStorage.activeProfileId {
+                                        Spacer()
+                                        Text("识别中")
+                                            .font(.caption2)
+                                            .foregroundColor(.green)
+                                    } else {
+                                        Spacer()
+                                        Text("点击查看详情")
+                                            .font(.caption2)
+                                            .foregroundColor(.blue)
+                                    }
+                                }
                             }
 
                             Spacer()
-                        }
 
-                        HStack {
-                            Text("创建于 \(formatDate(profile.createdDate))")
+                            Image(systemName: "chevron.right")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-
-                            Spacer()
-
-                            if profile.id != dataStorage.activeProfileId {
-                                Button("设为当前") {
-                                    dataStorage.setActiveProfile(profile.id)
-                                }
-                                .font(.caption)
-                            }
                         }
-
-                        HStack(spacing: 8) {
-                            Button {
-                                profileToPreview = profile
-                            } label: {
-                                Label("查看模板", systemImage: "photo.on.rectangle.angled")
-                                    .font(.caption.weight(.semibold))
-                            }
-                            .buttonStyle(.bordered)
-
-                            if profile.id == dataStorage.activeProfileId {
-                                Text("当前识别使用该模板")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            Spacer()
-                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 4)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        dataStorage.setActiveProfile(profile.id)
-                    }
+                    .buttonStyle(.plain)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button("重命名") {
                             profileToRename = profile
@@ -143,19 +162,19 @@ struct TemplateCenterView: View {
         } message: {
             Text("请输入新的模板名称")
         }
-        .confirmationDialog(
-            "删除后无法恢复，是否继续？",
-            isPresented: $showingDeleteConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("删除模板", role: .destructive) {
+        .alert("确认删除", isPresented: $showingDeleteConfirmation) {
+            Button("取消", role: .cancel) {
+                profileToDelete = nil
+            }
+            Button("删除", role: .destructive) {
                 if let profile = profileToDelete {
                     dataStorage.deleteProfile(profile)
                 }
                 profileToDelete = nil
             }
-            Button("取消", role: .cancel) {
-                profileToDelete = nil
+        } message: {
+            if let profile = profileToDelete {
+                Text("确定要删除模板「\(profile.name)」吗？\n删除后无法恢复。")
             }
         }
     }
@@ -166,6 +185,20 @@ struct TemplateCenterView: View {
         formatter.timeStyle = .short
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.string(from: date)
+    }
+
+    // Helper functions for thumbnail display
+    private func getFirstPreviewImage(profile: CoinProfile) -> UIImage? {
+        let allImages = decodeImages(from: profile.frontPreviewImages) + decodeImages(from: profile.backPreviewImages)
+        return allImages.first
+    }
+
+    private func getPreviewImageCount(profile: CoinProfile) -> Int {
+        return profile.frontPreviewImages.count + profile.backPreviewImages.count
+    }
+
+    private func decodeImages(from rawImages: [Data]) -> [UIImage] {
+        rawImages.compactMap { UIImage(data: $0) }
     }
 }
 

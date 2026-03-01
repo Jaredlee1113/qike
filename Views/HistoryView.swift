@@ -98,10 +98,6 @@ struct HistoryView: View {
                 Text(session.sourceType.displayName)
                     .font(.caption)
                     .foregroundColor(.secondary)
-
-                Text("模板：\(profileName(for: session))")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
             }
 
             Spacer()
@@ -141,7 +137,6 @@ struct HistoryView: View {
 
         let fields: [String] = [
             session.sourceType.displayName,
-            profileName(for: session),
             hexagramName(for: session) ?? ""
         ]
 
@@ -151,11 +146,6 @@ struct HistoryView: View {
     private func hexagramName(for session: DivinationSession) -> String? {
         guard let results = session.results else { return nil }
         return HexagramProvider.findHexagram(by: results.map { $0.yinYang })?.name
-    }
-
-    private func profileName(for session: DivinationSession) -> String {
-        guard let profileId = session.profileId else { return "未关联模板" }
-        return dataStorage.profiles.first(where: { $0.id == profileId })?.name ?? "模板已删除"
     }
 
     private func formatDay(_ date: Date) -> String {
@@ -234,12 +224,6 @@ struct SessionDetailView: View {
                     Text(session.sourceType.displayName)
                         .font(.body)
                         .foregroundColor(.secondary)
-
-                    Text("模板")
-                        .font(.headline)
-                    Text(profileName(for: session))
-                        .font(.body)
-                        .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
@@ -270,10 +254,6 @@ struct SessionDetailView: View {
         return formatter.string(from: date)
     }
 
-    private func profileName(for session: DivinationSession) -> String {
-        guard let profileId = session.profileId else { return "未关联模板" }
-        return dataStorage.profiles.first(where: { $0.id == profileId })?.name ?? "模板已删除"
-    }
 }
 
 #if DEBUG

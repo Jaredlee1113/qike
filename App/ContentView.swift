@@ -11,10 +11,6 @@ struct ContentView: View {
         #endif
     }
 
-    private var hasActiveProfile: Bool {
-        dataStorage.activeProfile != nil
-    }
-    
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -22,40 +18,10 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("起的课")
                             .font(.largeTitle.bold())
-                        Text("拍照或手动输入，快速得到卦象结果")
+                        Text("手动输入，快速得到卦象结果")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
-
-                    NavigationLink(destination: TemplateCenterView()) {
-                        HStack(spacing: 12) {
-                            Image(systemName: hasActiveProfile ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                                .font(.title3)
-                                .foregroundColor(hasActiveProfile ? .green : .orange)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("当前模板")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(dataStorage.activeProfile?.name ?? "未设置模板，建议先创建")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                    .lineLimit(2)
-                            }
-
-                            Spacer()
-
-                            Text("模板中心")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundColor(.blue)
-                        }
-                        .padding(14)
-                        .background(Color(.secondarySystemBackground))
-                        .cornerRadius(14)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("模板中心")
-                    .accessibilityHint("查看并切换模板")
 
                     startSessionBlock
 
@@ -99,27 +65,35 @@ struct ContentView: View {
                 .font(.headline)
                 .foregroundColor(.white.opacity(0.9))
 
-            VStack(spacing: 10) {
-                NavigationLink(destination: CameraView()) {
-                    startActionRow(
-                        title: "拍摄识别",
-                        subtitle: "使用相机快速识别铜钱",
-                        symbolName: "camera.viewfinder"
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("开始起课")
+            NavigationLink(destination: CameraView()) {
+                HStack(spacing: 12) {
+                    Image(systemName: "square.and.pencil")
+                        .font(.title3.weight(.semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 30)
 
-                NavigationLink(destination: ManualInputView()) {
-                    startActionRow(
-                        title: "手动输入",
-                        subtitle: "直接输入六爻阴阳",
-                        symbolName: "square.and.pencil"
-                    )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("手动输入")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.white)
+
+                        Text("选择六爻阴阳")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.75))
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.white.opacity(0.6))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("手动输入")
+                .padding(12)
+                .background(Color.white.opacity(0.15))
+                .cornerRadius(16)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("开始起课")
         }
         .padding(14)
         .background(
@@ -131,34 +105,6 @@ struct ContentView: View {
         )
         .cornerRadius(24)
         .shadow(color: Color.blue.opacity(0.3), radius: 12, x: 0, y: 6)
-    }
-
-    private func startActionRow(title: String, subtitle: String, symbolName: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: symbolName)
-                .font(.title3.weight(.semibold))
-                .foregroundColor(.white)
-                .frame(width: 30)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.white)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.85))
-            }
-
-            Spacer()
-
-            Image(systemName: "arrow.right.circle.fill")
-                .font(.title3)
-                .foregroundColor(.white.opacity(0.9))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color.white.opacity(0.16))
-        .cornerRadius(14)
     }
 
     private func quickActionCard(title: String, subtitle: String, symbolName: String) -> some View {

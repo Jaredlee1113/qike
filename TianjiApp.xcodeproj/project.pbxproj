@@ -20,6 +20,10 @@
 		1000013 /* Views/ResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000013 /* Views/ResultView.swift */; };
 		1000023 /* TianjiAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000023 /* TianjiAppUITests.swift */; };
 		1000025 /* Views/HexagramTestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000025 /* Views/HexagramTestView.swift */; };
+		1000026 /* Data/Models/CoinTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000026 /* Data/Models/CoinTemplate.swift */; };
+		1000027 /* Data/Storage/CoinTemplateStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000027 /* Data/Storage/CoinTemplateStorageManager.swift */; };
+		1000028 /* Views/CoinTemplateSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000028 /* Views/CoinTemplateSetupView.swift */; };
+		1000029 /* Views/CoinArrangementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2000029 /* Views/CoinArrangementView.swift */; };
 		48FDD31E2F1E7CB800848679 /* Resources/HexagramImages in Resources */ = {isa = PBXBuildFile; fileRef = 737142052D26416AA504BBE8 /* Resources/HexagramImages */; };
 		6199290CA9484812991AA301 /* Resources/HexagramImages in Resources */ = {isa = PBXBuildFile; fileRef = 737142052D26416AA504BBE8 /* Resources/HexagramImages */; };
 /* End PBXBuildFile section */
@@ -48,6 +52,10 @@
 		2000013 /* Views/ResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ResultView.swift; sourceTree = "<group>"; };
 		2000023 /* TianjiAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TianjiAppUITests.swift; sourceTree = "<group>"; };
 		2000025 /* Views/HexagramTestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HexagramTestView.swift; sourceTree = "<group>"; };
+		2000026 /* Data/Models/CoinTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/Models/CoinTemplate.swift; sourceTree = "<group>"; };
+		2000027 /* Data/Storage/CoinTemplateStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Data/Storage/CoinTemplateStorageManager.swift; sourceTree = "<group>"; };
+		2000028 /* Views/CoinTemplateSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/CoinTemplateSetupView.swift; sourceTree = "<group>"; };
+		2000029 /* Views/CoinArrangementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/CoinArrangementView.swift; sourceTree = "<group>"; };
 		3000001 /* TianjiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TianjiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3000002 /* TianjiAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TianjiAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		737142052D26416AA504BBE8 /* Resources/HexagramImages */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Resources/HexagramImages; sourceTree = "<group>"; };
@@ -88,11 +96,15 @@
 				2000006 /* Data/Models/DivinationSession.swift */,
 				2000007 /* Data/Models/CoinResult.swift */,
 				2000008 /* Data/Models/Hexagram.swift */,
+				2000026 /* Data/Models/CoinTemplate.swift */,
 				2000009 /* Data/Storage/DataStorageManager.swift */,
+				2000027 /* Data/Storage/CoinTemplateStorageManager.swift */,
 				2000011 /* Views/CameraView.swift */,
 				2000012 /* Views/HistoryView.swift */,
 				2000013 /* Views/ResultView.swift */,
 				2000025 /* Views/HexagramTestView.swift */,
+				2000028 /* Views/CoinTemplateSetupView.swift */,
+				2000029 /* Views/CoinArrangementView.swift */,
 				0000005 /* Resources */,
 			);
 			sourceTree = "<group>";
@@ -230,11 +242,15 @@
 				1000006 /* Data/Models/DivinationSession.swift in Sources */,
 				1000007 /* Data/Models/CoinResult.swift in Sources */,
 				1000008 /* Data/Models/Hexagram.swift in Sources */,
+				1000026 /* Data/Models/CoinTemplate.swift in Sources */,
 				1000009 /* Data/Storage/DataStorageManager.swift in Sources */,
+				1000027 /* Data/Storage/CoinTemplateStorageManager.swift in Sources */,
 				1000011 /* Views/CameraView.swift in Sources */,
 				1000012 /* Views/HistoryView.swift in Sources */,
 				1000013 /* Views/ResultView.swift in Sources */,
 				1000025 /* Views/HexagramTestView.swift in Sources */,
+				1000028 /* Views/CoinTemplateSetupView.swift in Sources */,
+				1000029 /* Views/CoinArrangementView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
